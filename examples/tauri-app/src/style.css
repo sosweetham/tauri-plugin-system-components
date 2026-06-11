@@ -140,15 +140,19 @@ body.native-cards {
   animation: none;
 }
 
+/* Glassy cards: the surface is the native glass panel below the webview.
+   A light DOM scrim on top keeps text readable over busy backdrops without
+   hiding the refraction. */
 .card.glassy {
-  background: transparent;
+  background: rgba(12, 14, 20, 0.28);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.25);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 body.desktop-glass .card.glassy {
-  background: transparent;
+  background: rgba(12, 14, 20, 0.28);
 }
 
 /* Fixed photo background — content scrolls over it so the glass bar

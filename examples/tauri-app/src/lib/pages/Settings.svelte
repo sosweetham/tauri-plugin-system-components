@@ -172,7 +172,14 @@
       <input
         type="file"
         accept="image/*"
-        onchange={(e) => pickImage(e, async (dataUrl) => (pg.background = dataUrl))}
+        onchange={(e) =>
+          pickImage(e, async (dataUrl) => {
+            pg.background = dataUrl;
+            // In native-cards mode the photo lives in the native backdrop.
+            if (pg.nativeCards) {
+              await updateComponent('native-bg', { image: dataUrl });
+            }
+          })}
       />
     </label>
   </div>
