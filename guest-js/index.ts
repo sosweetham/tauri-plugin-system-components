@@ -1,8 +1,5 @@
-import {
-  invoke,
-  addPluginListener,
-  type PluginListener,
-} from '@tauri-apps/api/core';
+import { invoke, addPluginListener } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 /** A single tab in the native bottom tab bar. */
 export interface TabItem {
@@ -51,14 +48,25 @@ export interface TabSelectedEvent {
   id: string;
 }
 
+/** Subscription handle returned by {@link onTabSelected}. */
+export interface TabSelectedListener {
+  unregister(): Promise<void>;
+}
+
 /**
- * Mounts (or reconfigures) the native bottom tab bar over the webview.
+ * Mounts (or reconfigures) the native tab bar over the webview.
  *
- * **iOS only** — rejects everywhere else. That rejection is the supported
- * way to detect the platform: catch it and render an HTML tab bar instead.
+ * **iOS and macOS** — rejects on Windows/Linux/Android. That rejection is
+ * the supported way to detect the platform: catch it and render an HTML tab
+ * bar instead.
  *
- * On iOS 26+ (app built with Xcode 26) the bar is Liquid Glass and refracts
- * the web content behind it; older versions get the classic translucent bar.
+ * - iOS: a real `UITabBar`. On iOS 26+ (app built with Xcode 26) it's
+ *   Liquid Glass and refracts the web content behind it; older versions get
+ *   the classic translucent bar.
+ * - macOS: an `NSSegmentedControl` (the native tab-switcher control) inside
+ *   a floating `NSGlassEffectView` capsule on macOS 26, blur capsule on
+ *   older systems.
+ *
  * Idempotent: calling again updates the existing bar in place.
  */
 export async function configureTabBar(
@@ -67,38 +75,41 @@ export async function configureTabBar(
   await invoke('plugin:liquid-glass|configure_tab_bar', { options });
 }
 
-/** Unmounts the native tab bar. iOS only. */
+/** Unmounts the native tab bar. iOS/macOS. */
 export async function removeTabBar(): Promise<void> {
   await invoke('plugin:liquid-glass|remove_tab_bar');
 }
 
-/** Shows a previously hidden tab bar. iOS only. */
+/** Shows a previously hidden tab bar. iOS/macOS. */
 export async function showTabBar(): Promise<void> {
   await invoke('plugin:liquid-glass|show_tab_bar');
 }
 
-/** Hides the tab bar without unmounting it. iOS only. */
+/** Hides the tab bar without unmounting it. iOS/macOS. */
 export async function hideTabBar(): Promise<void> {
   await invoke('plugin:liquid-glass|hide_tab_bar');
 }
 
 /**
  * Programmatically selects a tab. Does **not** emit a `tabSelected` event
- * (matching UIKit, which only reports user taps). iOS only.
+ * (matching AppKit/UIKit, which only report user interaction). iOS/macOS.
  */
 export async function selectTab(id: string): Promise<void> {
   await invoke('plugin:liquid-glass|select_tab', { options: { id } });
 }
 
-/** Sets (or clears, when `value` is omitted) a tab's badge. iOS only. */
+/**
+ * Sets (or clears, when `value` is omitted) a tab's badge. iOS only —
+ * NSSegmentedControl has no badge concept, so this rejects on macOS.
+ */
 export async function setBadge(id: string, value?: string): Promise<void> {
   await invoke('plugin:liquid-glass|set_badge', { options: { id, value } });
 }
 
 /**
- * Height of the region the bar occludes at the bottom of the screen, in CSS
+ * Height of the region the bar occludes at the bottom of the window, in CSS
  * points — pad your page's bottom by this so content can scroll clear of the
- * floating bar. iOS only.
+ * floating bar. iOS/macOS.
  */
 export async function getTabBarInsets(): Promise<TabBarInsets> {
   return await invoke('plugin:liquid-glass|get_tab_bar_insets');
@@ -106,12 +117,31 @@ export async function getTabBarInsets(): Promise<TabBarInsets> {
 
 /**
  * Listens for user taps on the native tab bar. Drive your page switching
- * from this. iOS only (never fires elsewhere).
+ * from this. iOS/macOS (never fires elsewhere).
+ *
+ * Internally this subscribes to both transports — the mobile plugin event
+ * channel (iOS) and the `liquid-glass://tab-selected` Tauri event (macOS);
+ * only the platform-active one ever fires.
  */
 export async function onTabSelected(
   handler: (event: TabSelectedEvent) => void,
-): Promise<PluginListener> {
-  return await addPluginListener('liquid-glass', 'tabSelected', handler);
+): Promise<TabSelectedListener> {
+  const unlistenEvent = await listen<TabSelectedEvent>(
+    'liquid-glass://tab-selected',
+    (event) => handler(event.payload),
+  );
+  // register_listener only exists on the mobile plugin; rejects on desktop.
+  const pluginListener = await addPluginListener<TabSelectedEvent>(
+    'liquid-glass',
+    'tabSelected',
+    handler,
+  ).catch(() => null);
+  return {
+    async unregister() {
+      unlistenEvent();
+      await pluginListener?.unregister();
+    },
+  };
 }
 
 /**

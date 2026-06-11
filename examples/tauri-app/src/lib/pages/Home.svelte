@@ -5,17 +5,19 @@
 <div class="hero">
   <h1>Liquid Glass Demo</h1>
   <p>
-    {#if nativeBar}
+    {#if nativeBar && glass}
+      The capsule below is a native <code>NSSegmentedControl</code> floating
+      over this webview
+      {#if glass.supported}
+        inside a real <code>NSGlassEffectView</code> — and the window
+        background is glass too.
+      {:else}
+        inside a blur capsule (macOS pre-26 fallback).
+      {/if}
+    {:else if nativeBar}
       The bar below is a real UIKit <code>UITabBar</code> floating over this
       webview — on iOS 26 it's Liquid Glass, refracting this gradient as you
       scroll.
-    {:else if glass}
-      Native tab bar unavailable here — using the HTML fallback bar.
-      {#if glass.supported}
-        The window background is a real <code>NSGlassEffectView</code>.
-      {:else}
-        macOS pre-26: using the <code>NSVisualEffectView</code> blur fallback.
-      {/if}
     {:else}
       Native tab bar unavailable here — using the HTML fallback bar.
     {/if}

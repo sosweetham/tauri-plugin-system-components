@@ -58,6 +58,14 @@ pub struct WindowGlassOptions {
     pub tint_color: Option<String>,
 }
 
+/// Payload of the `liquid-glass://tab-selected` event emitted on macOS
+/// (iOS delivers the same shape through the plugin event channel).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TabSelectedPayload {
+    pub id: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GlassSupport {

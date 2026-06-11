@@ -40,6 +40,11 @@ objc2-app-kit = { version = "0.3", features = [
   "NSColor",
   "NSResponder",
   "NSGraphics",
+  "NSControl",
+  "NSSegmentedControl",
+  "NSCell",
+  "NSSegmentedCell",
+  "NSImage",
 ] }
 objc2-foundation = "0.3"
 

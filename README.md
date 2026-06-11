@@ -10,6 +10,12 @@ Apple's official **Liquid Glass** components for [Tauri 2](https://tauri.app) ap
   a `WKWebView`). Tab taps are delivered to JS as `tabSelected` events so the
   web app drives its own page switching. On pre-26 devices the same bar
   renders the classic translucent look.
+- **macOS — native floating tab bar.** The same `configureTabBar` API mounts
+  an `NSSegmentedControl` (the control `NSTabViewController` uses for
+  toolbar-style tabs, with SF Symbol icons) inside a floating
+  `NSGlassEffectView` capsule pinned to the bottom center of the window —
+  blur capsule fallback pre-26. Selection reaches JS through the same
+  `onTabSelected` helper.
 - **macOS — glass window background.** An `NSGlassEffectView` (macOS 26)
   inserted behind a transparent webview, with an `NSVisualEffectView` blur
   fallback on older systems. The class is resolved dynamically at runtime, so
@@ -17,7 +23,8 @@ Apple's official **Liquid Glass** components for [Tauri 2](https://tauri.app) ap
 
 Windows, Linux, and Android are graceful stubs: the commands reject with
 `unsupported on this platform`, which is the documented signal to fall back
-to an HTML UI (see the example app).
+to an HTML UI (see the example app). Tab badges (`setBadge`) are iOS-only —
+`NSSegmentedControl` has no badge concept.
 
 ## Install
 
@@ -73,8 +80,12 @@ try {
 ```
 
 Other commands: `removeTabBar`, `showTabBar`, `hideTabBar`,
-`selectTab(id)` (no event, mirrors UIKit), `setBadge(id, value?)`,
-`clearWindowGlass`.
+`selectTab(id)` (no event, mirrors AppKit/UIKit), `setBadge(id, value?)`
+(iOS-only), `clearWindowGlass`.
+
+`onTabSelected` subscribes to both transports under the hood — the mobile
+plugin event channel on iOS and the `liquid-glass://tab-selected` Tauri event
+on macOS — so app code is identical everywhere.
 
 ## Requirements & caveats
 

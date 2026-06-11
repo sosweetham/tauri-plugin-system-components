@@ -30,10 +30,10 @@
   <div class="card">
     <h2>Native tab bar</h2>
     <button onclick={() => run('setBadge', () => setBadge('gallery', '3'))}>
-      Badge Gallery
+      Badge Gallery (iOS)
     </button>
     <button onclick={() => run('clearBadge', () => setBadge('gallery'))}>
-      Clear badge
+      Clear badge (iOS)
     </button>
     <button
       onclick={() =>
@@ -49,14 +49,14 @@
       Select Home (no event)
     </button>
   </div>
-{:else}
+{/if}
+
+{#if glass}
   <div class="card">
     <h2>Window glass (macOS)</h2>
-    {#if glass}
-      <p class="muted">
-        supported: {glass.supported} · fallback: {glass.fallback}
-      </p>
-    {/if}
+    <p class="muted">
+      supported: {glass.supported} · fallback: {glass.fallback}
+    </p>
     <button
       onclick={() =>
         run('setWindowGlass', async () => {

@@ -35,9 +35,9 @@
   // stacking duplicate tabSelected listeners.
   onMount(async () => {
     try {
-        // iOS: mounts the native Liquid Glass tab bar over the webview.
-        // Everywhere else this rejects with "unsupported on this platform",
-        // which is the documented signal to fall back to the HTML bar.
+      // iOS: native Liquid Glass UITabBar; macOS: NSSegmentedControl in a
+      // floating glass capsule. Windows/Linux reject with "unsupported on
+      // this platform" — the documented signal to use the HTML bar instead.
       await configureTabBar({
         items: tabs.map(({ id, title, sfSymbol }) => ({ id, title, sfSymbol })),
         selectedId: selected,
@@ -48,14 +48,16 @@
         selected = id;
       });
     } catch {
-      try {
-        glass = await isGlassSupported();
-        // macOS: real glass on 26+, blur fallback before that.
-        await setWindowGlass({});
-        document.body.classList.add('desktop-glass');
-      } catch {
-        // Windows/Linux: plain gradient, HTML bar.
-      }
+      // Windows/Linux: plain gradient, HTML bar.
+    }
+    try {
+      // macOS: glass window background — real glass on 26+, blur fallback
+      // before that. Rejects on every other platform.
+      glass = await isGlassSupported();
+      await setWindowGlass({});
+      document.body.classList.add('desktop-glass');
+    } catch {
+      glass = null;
     }
   });
 
