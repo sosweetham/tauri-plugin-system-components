@@ -180,6 +180,15 @@ pub struct UpdateComponentOptions {
     pub props: ComponentProps,
 }
 
+/// Batched form of [`UpdateComponentOptions`] — one IPC round trip and one
+/// (animation-disabled) native transaction for all geometry updates of a
+/// frame. Used by the DOM scroll-sync path.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateComponentsOptions {
+    pub components: Vec<UpdateComponentOptions>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveComponentOptions {

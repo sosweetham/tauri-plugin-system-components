@@ -26,6 +26,7 @@ permissions = [
   "allow-get-tab-bar-insets",
   "allow-create-component",
   "allow-update-component",
+  "allow-update-components",
   "allow-remove-component",
   "allow-register-listener",
   "allow-remove-listener",

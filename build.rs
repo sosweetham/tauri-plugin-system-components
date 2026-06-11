@@ -8,6 +8,7 @@ const COMMANDS: &[&str] = &[
     "get_tab_bar_insets",
     "create_component",
     "update_component",
+    "update_components",
     "remove_component",
     "is_glass_supported",
     "set_window_glass",

@@ -49,6 +49,10 @@ class UpdateComponentArgs: Decodable {
     let props: ComponentPropsArgs
 }
 
+class UpdateComponentsArgs: Decodable {
+    let components: [UpdateComponentArgs]
+}
+
 class RemoveComponentArgs: Decodable {
     let id: String
 }
@@ -90,14 +94,24 @@ final class ComponentsOverlayController: UIViewController {
         }
 
         let anchor = args.anchor ?? "topTrailing"
-        if args.below ?? false, let webView, let parent = webView.superview {
+        if args.below ?? false, let webView {
             // Below the webview: make the webview transparent so unpainted
             // DOM regions reveal the native view (barcode-scanner pattern).
             webView.isOpaque = false
             webView.backgroundColor = .clear
             webView.scrollView.backgroundColor = .clear
-            parent.insertSubview(container, belowSubview: webView)
-            placeByFrame(container, in: parent, anchor: anchor, props: props)
+            if anchor == "absolute" {
+                // DOM-synced panels go *inside* the scroll view, behind the
+                // WKContentView, at document coordinates — they then scroll
+                // natively with the page, no per-frame IPC needed.
+                webView.scrollView.insertSubview(container, at: 0)
+                placeByFrame(container, in: webView.scrollView, anchor: anchor, props: props)
+            } else if let parent = webView.superview {
+                // Static layers (e.g. fill backdrops) stay pinned behind
+                // the webview itself.
+                parent.insertSubview(container, belowSubview: webView)
+                placeByFrame(container, in: parent, anchor: anchor, props: props)
+            }
         } else if anchor == "absolute" || anchor == "fill" {
             view.addSubview(container)
             placeByFrame(container, in: view, anchor: anchor, props: props)

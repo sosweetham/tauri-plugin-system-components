@@ -265,6 +265,19 @@ export async function updateComponent(
   });
 }
 
+/**
+ * Batched {@link updateComponent}: one IPC round trip and one
+ * animation-disabled native transaction for all entries. Unknown ids are
+ * skipped. Use this for per-frame geometry sync.
+ */
+export async function updateComponents(
+  components: Array<{ id: string; props: ComponentProps }>,
+): Promise<void> {
+  await invoke('plugin:liquid-glass|update_components', {
+    options: { components },
+  });
+}
+
 /** Removes a component created with {@link createComponent}. iOS/macOS. */
 export async function removeComponent(id: string): Promise<void> {
   await invoke('plugin:liquid-glass|remove_component', { options: { id } });
@@ -313,13 +326,76 @@ export interface GlassCardOptions {
 let glassCardCounter = 0;
 
 /**
+ * On iOS, DOM-synced panels live *inside* the webview's UIScrollView at
+ * document coordinates, scrolling natively with the page — geometry only
+ * needs re-sending on layout changes, never on scroll.
+ */
+const IOS_NATIVE_SCROLL = /iP(hone|ad|od)/.test(
+  typeof navigator !== 'undefined' ? navigator.userAgent : '',
+);
+
+interface SyncEntry {
+  id: string;
+  element: HTMLElement;
+  /** last geometry sent, as a comparison key */
+  last: string;
+}
+
+/** All DOM-synced cards share one rAF loop and one batched update/frame. */
+const syncedCards = new Map<string, SyncEntry>();
+let syncLoopRunning = false;
+
+function measure(element: HTMLElement): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const r = element.getBoundingClientRect();
+  // Document coordinates on iOS (native scroll), viewport elsewhere.
+  const y = IOS_NATIVE_SCROLL ? r.top + window.scrollY : r.top;
+  return { x: r.left, y, width: r.width, height: r.height };
+}
+
+function startSyncLoop() {
+  if (syncLoopRunning) return;
+  syncLoopRunning = true;
+  const tick = () => {
+    if (syncedCards.size === 0) {
+      syncLoopRunning = false;
+      return;
+    }
+    const updates: Array<{ id: string; props: ComponentProps }> = [];
+    for (const entry of syncedCards.values()) {
+      const rect = measure(entry.element);
+      const key = `${rect.x},${rect.y},${rect.width},${rect.height}`;
+      if (key !== entry.last) {
+        entry.last = key;
+        updates.push({ id: entry.id, props: rect });
+      }
+    }
+    if (updates.length > 0) {
+      updateComponents(updates).catch(() => {});
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+/**
  * Backs a DOM element with a real native glass panel ("liquid glass card"):
  * creates a `glass` component *below* the transparent webview, sized to the
- * element's `getBoundingClientRect()`, and keeps it in sync on scroll and
- * resize. Style the element itself with a transparent background so the
- * glass shows through — your text/markup stays plain DOM, rendered sharp on
- * top, while the panel refracts whatever native content sits behind the
- * page (e.g. a `fill` image component or the macOS window glass).
+ * element's `getBoundingClientRect()`, and keeps it in sync. Style the
+ * element itself with a transparent background so the glass shows through —
+ * your text/markup stays plain DOM, rendered sharp on top, while the panel
+ * refracts whatever native content sits behind the page (e.g. a `fill`
+ * image component or the macOS window glass).
+ *
+ * Sync strategy: on iOS the panel scrolls natively inside the webview's
+ * scroll view (document coordinates — zero per-frame IPC); elsewhere a
+ * single shared requestAnimationFrame loop measures all attached cards and
+ * sends one batched, animation-disabled update per frame, only when
+ * geometry actually changed.
  *
  * iOS and macOS; rejects elsewhere.
  */
@@ -328,50 +404,47 @@ export async function attachGlassCard(
   options: GlassCardOptions = {},
 ): Promise<GlassCardHandle> {
   const id = options.id ?? `glass-card-${++glassCardCounter}`;
-  const rect = element.getBoundingClientRect();
+  const rect = measure(element);
   await createComponent({
     id,
     kind: 'glass',
     anchor: 'absolute',
     below: true,
     props: {
-      x: rect.left,
-      y: rect.top,
-      width: rect.width,
-      height: rect.height,
+      ...rect,
       cornerRadius: options.cornerRadius ?? 18,
       tint: options.tint,
     },
   });
 
-  let raf = 0;
-  let pending = false;
-  const sync = () => {
-    if (pending) return;
-    pending = true;
-    raf = requestAnimationFrame(() => {
-      pending = false;
-      const r = element.getBoundingClientRect();
-      updateComponent(id, {
-        x: r.left,
-        y: r.top,
-        width: r.width,
-        height: r.height,
-      }).catch(() => {});
-    });
-  };
-  const observer = new ResizeObserver(sync);
-  observer.observe(element);
-  observer.observe(document.documentElement);
-  window.addEventListener('scroll', sync, { passive: true, capture: true });
-  window.addEventListener('resize', sync);
+  if (IOS_NATIVE_SCROLL) {
+    // Scrolling is native; only layout changes need re-syncing.
+    let raf = 0;
+    const resync = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        updateComponents([{ id, props: measure(element) }]).catch(() => {});
+      });
+    };
+    const observer = new ResizeObserver(resync);
+    observer.observe(element);
+    observer.observe(document.documentElement);
+    window.addEventListener('resize', resync);
+    return {
+      async remove() {
+        observer.disconnect();
+        window.removeEventListener('resize', resync);
+        cancelAnimationFrame(raf);
+        await removeComponent(id).catch(() => {});
+      },
+    };
+  }
 
+  syncedCards.set(id, { id, element, last: '' });
+  startSyncLoop();
   return {
     async remove() {
-      observer.disconnect();
-      window.removeEventListener('scroll', sync, true);
-      window.removeEventListener('resize', sync);
-      cancelAnimationFrame(raf);
+      syncedCards.delete(id);
       await removeComponent(id).catch(() => {});
     },
   };

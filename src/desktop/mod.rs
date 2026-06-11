@@ -122,6 +122,14 @@ impl<R: Runtime> LiquidGlass<R> {
         )
     }
 
+    pub fn update_components(&self, options: UpdateComponentsOptions) -> crate::Result<()> {
+        let _ = &options;
+        macos_only!(
+            macos::components::update_batch(self.window()?, options),
+            "native components are iOS/macOS-only"
+        )
+    }
+
     pub fn remove_component(&self, options: RemoveComponentOptions) -> crate::Result<()> {
         let _ = &options;
         macos_only!(

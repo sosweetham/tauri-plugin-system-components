@@ -148,6 +148,18 @@ class LiquidGlassPlugin: Plugin {
         }
     }
 
+    @objc public func updateComponents(_ invoke: Invoke) throws {
+        let args = try invoke.parseArgs(UpdateComponentsArgs.self)
+        DispatchQueue.main.async { [weak self] in
+            if let overlay = self?.componentsOverlay {
+                for item in args.components {
+                    _ = overlay.update(id: item.id, props: item.props)
+                }
+            }
+            invoke.resolve()
+        }
+    }
+
     @objc public func removeComponent(_ invoke: Invoke) throws {
         let args = try invoke.parseArgs(RemoveComponentArgs.self)
         DispatchQueue.main.async { [weak self] in

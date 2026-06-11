@@ -25,6 +25,7 @@ Default permissions for the liquid-glass plugin.
 - `allow-get-tab-bar-insets`
 - `allow-create-component`
 - `allow-update-component`
+- `allow-update-components`
 - `allow-remove-component`
 - `allow-register-listener`
 - `allow-remove-listener`
@@ -427,6 +428,32 @@ Enables the update_component command without any pre-configured scope.
 <td>
 
 Denies the update_component command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:allow-update-components`
+
+</td>
+<td>
+
+Enables the update_components command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:deny-update-components`
+
+</td>
+<td>
+
+Denies the update_components command without any pre-configured scope.
 
 </td>
 </tr>

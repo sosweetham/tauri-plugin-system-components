@@ -65,6 +65,14 @@ pub(crate) async fn update_component<R: Runtime>(
 }
 
 #[command]
+pub(crate) async fn update_components<R: Runtime>(
+    app: AppHandle<R>,
+    options: UpdateComponentsOptions,
+) -> Result<()> {
+    app.liquid_glass().update_components(options)
+}
+
+#[command]
 pub(crate) async fn remove_component<R: Runtime>(
     app: AppHandle<R>,
     options: RemoveComponentOptions,

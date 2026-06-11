@@ -96,6 +96,10 @@ impl<R: Runtime> LiquidGlass<R> {
         ios_command!(self, "updateComponent", options)
     }
 
+    pub fn update_components(&self, options: UpdateComponentsOptions) -> crate::Result<()> {
+        ios_command!(self, "updateComponents", options)
+    }
+
     pub fn remove_component(&self, options: RemoveComponentOptions) -> crate::Result<()> {
         ios_command!(self, "removeComponent", options)
     }

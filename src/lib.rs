@@ -58,6 +58,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::get_tab_bar_insets,
             commands::create_component,
             commands::update_component,
+            commands::update_components,
             commands::remove_component,
             commands::is_glass_supported,
             commands::set_window_glass,

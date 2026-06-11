@@ -21,7 +21,7 @@ use super::{
 };
 use crate::models::{
     ComponentAnchor, ComponentEventPayload, ComponentKind, ComponentProps, CreateComponentOptions,
-    UpdateComponentOptions,
+    UpdateComponentOptions, UpdateComponentsOptions,
 };
 use crate::Error;
 
@@ -354,56 +354,106 @@ pub fn create<R: Runtime>(
     })
 }
 
+/// Runs `f` inside a CATransaction with implicit animations disabled —
+/// without this, layer-backed frame changes glide (~0.25s) toward their
+/// target and DOM-synced panels visibly swim behind the page.
+fn without_implicit_animations<F: FnOnce()>(f: F) {
+    let cls = objc2::runtime::AnyClass::get(c"CATransaction");
+    match cls {
+        Some(cls) => {
+            let _: () = unsafe { msg_send![cls, begin] };
+            let _: () = unsafe { msg_send![cls, setDisableActions: true] };
+            f();
+            let _: () = unsafe { msg_send![cls, commit] };
+        }
+        None => f(),
+    }
+}
+
+/// Applies one component update. Returns false when the id is unknown.
+fn apply_update(content: &NSView, options: &UpdateComponentOptions) -> bool {
+    let Some(control) = find_subview(content, &inner_id(&options.id)) else {
+        return false;
+    };
+    let props = &options.props;
+
+    // Geometry updates (DOM scroll/resize sync) move the container.
+    if props.x.is_some() || props.y.is_some() || props.width.is_some() || props.height.is_some() {
+        if let Some(container) = find_subview(content, &container_id(&options.id)) {
+            let bh = unsafe { container.superview() }
+                .map(|s| s.bounds().size.height)
+                .unwrap_or(0.0);
+            let mut frame = container.frame();
+            if let Some(w) = props.width {
+                frame.size.width = w;
+            }
+            if let Some(h) = props.height {
+                frame.size.height = h;
+            }
+            if let Some(x) = props.x {
+                frame.origin.x = x;
+            }
+            if let Some(y) = props.y {
+                frame.origin.y = bh - y - frame.size.height;
+            }
+            container.setFrame(frame);
+        }
+    }
+    unsafe {
+        if let Some(on) = props.on {
+            let _: () = msg_send![&*control, setState: if on { 1isize } else { 0 }];
+        }
+        if let Some(value) = props.value {
+            let _: () = msg_send![&*control, setDoubleValue: value];
+        }
+        if let Some(label) = &props.label {
+            let _: () = msg_send![&*control, setTitle: &*NSString::from_str(label)];
+        }
+        if props.image.is_some() {
+            let side = control.frame().size.height;
+            if let Some(image) = decode_image(props, side) {
+                let _: () = msg_send![&*control, setImage: &*image];
+            }
+        }
+    }
+    true
+}
+
 pub fn update<R: Runtime>(
     window: WebviewWindow<R>,
     options: UpdateComponentOptions,
 ) -> crate::Result<()> {
     on_main_thread(&window, move |win| {
         let content = content_view(win)?;
-        let control = find_subview(&content, &inner_id(&options.id))
-            .ok_or_else(|| Error::WindowHandle(format!("unknown component: {}", options.id)))?;
-        let props = &options.props;
+        let mut found = false;
+        without_implicit_animations(|| {
+            found = apply_update(&content, &options);
+        });
+        if found {
+            Ok(())
+        } else {
+            Err(Error::WindowHandle(format!(
+                "unknown component: {}",
+                options.id
+            )))
+        }
+    })
+}
 
-        // Geometry updates (DOM scroll/resize sync) move the container.
-        if props.x.is_some() || props.y.is_some() || props.width.is_some() || props.height.is_some()
-        {
-            if let Some(container) = find_subview(&content, &container_id(&options.id)) {
-                let bh = unsafe { container.superview() }
-                    .map(|s| s.bounds().size.height)
-                    .unwrap_or(0.0);
-                let mut frame = container.frame();
-                if let Some(w) = props.width {
-                    frame.size.width = w;
-                }
-                if let Some(h) = props.height {
-                    frame.size.height = h;
-                }
-                if let Some(x) = props.x {
-                    frame.origin.x = x;
-                }
-                if let Some(y) = props.y {
-                    frame.origin.y = bh - y - frame.size.height;
-                }
-                container.setFrame(frame);
+/// One main-thread hop + one animation-disabled transaction for a whole
+/// frame's worth of geometry updates. Unknown ids are skipped (their DOM
+/// elements may have unmounted between frames).
+pub fn update_batch<R: Runtime>(
+    window: WebviewWindow<R>,
+    options: UpdateComponentsOptions,
+) -> crate::Result<()> {
+    on_main_thread(&window, move |win| {
+        let content = content_view(win)?;
+        without_implicit_animations(|| {
+            for item in &options.components {
+                apply_update(&content, item);
             }
-        }
-        unsafe {
-            if let Some(on) = props.on {
-                let _: () = msg_send![&*control, setState: if on { 1isize } else { 0 }];
-            }
-            if let Some(value) = props.value {
-                let _: () = msg_send![&*control, setDoubleValue: value];
-            }
-            if let Some(label) = &props.label {
-                let _: () = msg_send![&*control, setTitle: &*NSString::from_str(label)];
-            }
-            if props.image.is_some() {
-                let side = control.frame().size.height;
-                if let Some(image) = decode_image(props, side) {
-                    let _: () = msg_send![&*control, setImage: &*image];
-                }
-            }
-        }
+        });
         Ok(())
     })
 }
