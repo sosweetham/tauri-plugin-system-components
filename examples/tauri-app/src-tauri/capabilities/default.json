@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions for the tauri-plugin-liquid-glass-demo example app.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "liquid-glass:default"
+  ]
+}
