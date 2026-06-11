@@ -108,8 +108,8 @@ export interface CreateComponentOptions {
   dy?: number;
   /**
    * Insert the view *below* the webview instead of above it. The webview is
-   * made transparent so unpainted DOM regions reveal the view — this is how
-   * glass panels sit behind DOM content (see {@link attachGlassCard}).
+   * made transparent so unpainted DOM regions reveal the view (e.g. a
+   * full-window `fill` backdrop image behind the page).
    */
   below?: boolean;
 }
