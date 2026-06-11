@@ -18,6 +18,26 @@
     currentAvatar,
     readFileAsDataUrl,
   } from '../playground.svelte.js';
+  import { makeBackdropImage } from '../avatar.js';
+
+  async function toggleNativeCards() {
+    if (!pg.nativeCards) {
+      // Native backdrop below the webview — what the glass cards refract.
+      await createComponent({
+        id: 'native-bg',
+        kind: 'image',
+        anchor: 'fill',
+        below: true,
+        props: { image: pg.background ?? makeBackdropImage() },
+      });
+      document.body.classList.add('native-cards');
+      pg.nativeCards = true;
+    } else {
+      pg.nativeCards = false; // Home page detaches its panels reactively.
+      document.body.classList.remove('native-cards');
+      await removeComponent('native-bg');
+    }
+  }
 
   let { glass = null, nativeBar = false, selected = 'settings' } = $props();
   let status = $state('');
@@ -169,6 +189,18 @@
 </div>
 
 {#if nativeBar}
+  <div class="card">
+    <h2>Native glass cards</h2>
+    <p class="muted">
+      Backs the Home-page cards with real glass panels below the webview,
+      synced to their DOM rects, over a native backdrop image. Go to Home
+      and scroll.
+    </p>
+    <button onclick={() => run('native cards', toggleNativeCards)}>
+      {pg.nativeCards ? 'Disable native cards' : 'Enable native cards'}
+    </button>
+  </div>
+
   <div class="card">
     <h2>Tab bar properties</h2>
     <div class="field">

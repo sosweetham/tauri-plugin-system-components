@@ -89,6 +89,18 @@ pub fn set_identifier(view: &NSView, identifier: &str) {
     let _: () = unsafe { msg_send![view, setIdentifier: &*ident] };
 }
 
+/// The WKWebView inside the window's content view — the first direct
+/// subview that isn't one of ours.
+pub fn find_webview(content: &NSView) -> Option<Retained<NSView>> {
+    for sub in content.subviews().iter() {
+        let id: Option<Retained<NSString>> = unsafe { msg_send![&*sub, identifier] };
+        if !id.is_some_and(|id| id.to_string().starts_with(ID_PREFIX)) {
+            return Some(sub);
+        }
+    }
+    None
+}
+
 pub fn parse_hex_color(hex: &str) -> Option<(f64, f64, f64, f64)> {
     let hex = hex.trim_start_matches('#');
     let (r, g, b, a) = match hex.len() {

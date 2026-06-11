@@ -92,6 +92,10 @@ pub enum ComponentKind {
     Progress,
     /// UIImageView / NSImageView — display only (avatars, thumbnails).
     Image,
+    /// A bare glass panel (UIGlassEffect / NSGlassEffectView, blur
+    /// fallback) — pair with `below: true` + `absolute` placement to back
+    /// DOM elements with real glass (see `attachGlassCard` in the JS API).
+    Glass,
 }
 
 /// Where a component is pinned, relative to the window/safe area.
@@ -104,6 +108,11 @@ pub enum ComponentAnchor {
     BottomLeading,
     BottomTrailing,
     Center,
+    /// Position by `props.x`/`props.y` (CSS points from the top-left) —
+    /// for views synced to DOM element rects.
+    Absolute,
+    /// Cover the whole window, resizing with it (e.g. background images).
+    Fill,
 }
 
 /// Per-kind properties. All optional; irrelevant fields are ignored.
@@ -133,6 +142,12 @@ pub struct ComponentProps {
     /// Explicit size in points (defaults to the control's natural size).
     pub width: Option<f64>,
     pub height: Option<f64>,
+    /// Top-left position in CSS points, for `absolute` placement. Also
+    /// accepted by `update_component` to move/resize (DOM scroll sync).
+    pub x: Option<f64>,
+    pub y: Option<f64>,
+    /// Corner radius for `glass` panels.
+    pub corner_radius: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,6 +165,12 @@ pub struct CreateComponentOptions {
     pub dx: f64,
     #[serde(default)]
     pub dy: f64,
+    /// Insert the view *below* the webview instead of above it. The webview
+    /// is made transparent so unpainted DOM regions reveal the view — this
+    /// is how glass panels sit behind DOM content (text stays sharp on
+    /// top while the glass refracts what's behind the page).
+    #[serde(default)]
+    pub below: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -46,7 +46,8 @@ export type ComponentKind =
   | 'button'
   | 'slider'
   | 'progress'
-  | 'image';
+  | 'image'
+  | 'glass';
 
 /** Where a component is pinned, relative to the window/safe area. */
 export type ComponentAnchor =
@@ -54,7 +55,11 @@ export type ComponentAnchor =
   | 'topTrailing'
   | 'bottomLeading'
   | 'bottomTrailing'
-  | 'center';
+  | 'center'
+  /** Position by `props.x`/`props.y` (CSS points from the top-left). */
+  | 'absolute'
+  /** Cover the whole window, resizing with it. */
+  | 'fill';
 
 /** Per-kind properties. All optional; irrelevant fields are ignored. */
 export interface ComponentProps {
@@ -81,6 +86,14 @@ export interface ComponentProps {
   /** Explicit size in points (defaults to the control's natural size). */
   width?: number;
   height?: number;
+  /**
+   * Top-left position in CSS points, for `absolute` placement. Also
+   * accepted by {@link updateComponent} to move/resize (DOM scroll sync).
+   */
+  x?: number;
+  y?: number;
+  /** Corner radius for `glass` panels. */
+  cornerRadius?: number;
 }
 
 export interface CreateComponentOptions {
@@ -93,6 +106,12 @@ export interface CreateComponentOptions {
   /** Offset from the anchor, in points (grows inward). */
   dx?: number;
   dy?: number;
+  /**
+   * Insert the view *below* the webview instead of above it. The webview is
+   * made transparent so unpainted DOM regions reveal the view — this is how
+   * glass panels sit behind DOM content (see {@link attachGlassCard}).
+   */
+  below?: boolean;
 }
 
 export interface ComponentEvent {
@@ -272,6 +291,88 @@ export async function onComponentEvent(
     async unregister() {
       unlistenEvent();
       await pluginListener?.unregister();
+    },
+  };
+}
+
+/** Handle returned by {@link attachGlassCard}. */
+export interface GlassCardHandle {
+  /** Stops syncing and removes the native panel. */
+  remove(): Promise<void>;
+}
+
+export interface GlassCardOptions {
+  /** Component id; defaults to a generated one. */
+  id?: string;
+  /** Corner radius of the glass panel (default 18). */
+  cornerRadius?: number;
+  /** Hex tint `#RRGGBB[AA]` for the glass. */
+  tint?: string;
+}
+
+let glassCardCounter = 0;
+
+/**
+ * Backs a DOM element with a real native glass panel ("liquid glass card"):
+ * creates a `glass` component *below* the transparent webview, sized to the
+ * element's `getBoundingClientRect()`, and keeps it in sync on scroll and
+ * resize. Style the element itself with a transparent background so the
+ * glass shows through — your text/markup stays plain DOM, rendered sharp on
+ * top, while the panel refracts whatever native content sits behind the
+ * page (e.g. a `fill` image component or the macOS window glass).
+ *
+ * iOS and macOS; rejects elsewhere.
+ */
+export async function attachGlassCard(
+  element: HTMLElement,
+  options: GlassCardOptions = {},
+): Promise<GlassCardHandle> {
+  const id = options.id ?? `glass-card-${++glassCardCounter}`;
+  const rect = element.getBoundingClientRect();
+  await createComponent({
+    id,
+    kind: 'glass',
+    anchor: 'absolute',
+    below: true,
+    props: {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+      cornerRadius: options.cornerRadius ?? 18,
+      tint: options.tint,
+    },
+  });
+
+  let raf = 0;
+  let pending = false;
+  const sync = () => {
+    if (pending) return;
+    pending = true;
+    raf = requestAnimationFrame(() => {
+      pending = false;
+      const r = element.getBoundingClientRect();
+      updateComponent(id, {
+        x: r.left,
+        y: r.top,
+        width: r.width,
+        height: r.height,
+      }).catch(() => {});
+    });
+  };
+  const observer = new ResizeObserver(sync);
+  observer.observe(element);
+  observer.observe(document.documentElement);
+  window.addEventListener('scroll', sync, { passive: true, capture: true });
+  window.addEventListener('resize', sync);
+
+  return {
+    async remove() {
+      observer.disconnect();
+      window.removeEventListener('scroll', sync, true);
+      window.removeEventListener('resize', sync);
+      cancelAnimationFrame(raf);
+      await removeComponent(id).catch(() => {});
     },
   };
 }

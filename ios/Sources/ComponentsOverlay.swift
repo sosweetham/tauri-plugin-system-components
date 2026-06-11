@@ -9,6 +9,7 @@
 //
 
 import UIKit
+import WebKit
 
 class ComponentPropsArgs: Decodable {
     let label: String?
@@ -24,6 +25,11 @@ class ComponentPropsArgs: Decodable {
     let tint: String?
     let width: Double?
     let height: Double?
+    /// Top-left position in CSS points, for `absolute` placement.
+    let x: Double?
+    let y: Double?
+    /// Corner radius for `glass` panels.
+    let cornerRadius: Double?
 }
 
 class CreateComponentArgs: Decodable {
@@ -33,6 +39,9 @@ class CreateComponentArgs: Decodable {
     let anchor: String?
     let dx: Double?
     let dy: Double?
+    /// Insert below the (transparent) webview so DOM content renders sharp
+    /// on top while the view shows through unpainted page regions.
+    let below: Bool?
 }
 
 class UpdateComponentArgs: Decodable {
@@ -68,7 +77,7 @@ final class ComponentsOverlayController: UIViewController {
 
     // MARK: creation
 
-    func create(_ args: CreateComponentArgs) {
+    func create(_ args: CreateComponentArgs, webView: WKWebView?) {
         remove(id: args.id)
         let props = args.props
         guard let control = makeControl(kind: args.kind, id: args.id, props: props) else {
@@ -79,21 +88,53 @@ final class ComponentsOverlayController: UIViewController {
         if props?.glass ?? false {
             container = wrapInGlassCapsule(control)
         }
-        container.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(container)
-        activateAnchorConstraints(
-            for: container,
-            anchor: args.anchor ?? "topTrailing",
-            dx: CGFloat(args.dx ?? 0),
-            dy: CGFloat(args.dy ?? 0)
-        )
-        if let w = props?.width {
-            control.widthAnchor.constraint(equalToConstant: CGFloat(w)).isActive = true
-        }
-        if let h = props?.height {
-            control.heightAnchor.constraint(equalToConstant: CGFloat(h)).isActive = true
+
+        let anchor = args.anchor ?? "topTrailing"
+        if args.below ?? false, let webView, let parent = webView.superview {
+            // Below the webview: make the webview transparent so unpainted
+            // DOM regions reveal the native view (barcode-scanner pattern).
+            webView.isOpaque = false
+            webView.backgroundColor = .clear
+            webView.scrollView.backgroundColor = .clear
+            parent.insertSubview(container, belowSubview: webView)
+            placeByFrame(container, in: parent, anchor: anchor, props: props)
+        } else if anchor == "absolute" || anchor == "fill" {
+            view.addSubview(container)
+            placeByFrame(container, in: view, anchor: anchor, props: props)
+        } else {
+            container.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(container)
+            activateAnchorConstraints(
+                for: container,
+                anchor: anchor,
+                dx: CGFloat(args.dx ?? 0),
+                dy: CGFloat(args.dy ?? 0)
+            )
+            if let w = props?.width {
+                control.widthAnchor.constraint(equalToConstant: CGFloat(w)).isActive = true
+            }
+            if let h = props?.height {
+                control.heightAnchor.constraint(equalToConstant: CGFloat(h)).isActive = true
+            }
         }
         components[args.id] = (container, control)
+    }
+
+    /// Frame-based placement (UIKit coordinates match CSS: y from the top).
+    private func placeByFrame(
+        _ container: UIView, in parent: UIView, anchor: String, props: ComponentPropsArgs?
+    ) {
+        if anchor == "fill" {
+            container.frame = parent.bounds
+            container.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        } else {
+            container.frame = CGRect(
+                x: props?.x ?? 0,
+                y: props?.y ?? 0,
+                width: props?.width ?? 200,
+                height: props?.height ?? 120
+            )
+        }
     }
 
     private func makeControl(kind: String, id: String, props: ComponentPropsArgs?) -> UIView? {
@@ -179,6 +220,24 @@ final class ComponentsOverlayController: UIViewController {
             }
             return control
 
+        case "glass":
+            // A bare glass panel — real UIGlassEffect on iOS 26, material
+            // blur before that. Pair with below+absolute to back DOM cards.
+            let effect: UIVisualEffect
+            if #available(iOS 26.0, *) {
+                let glassEffect = UIGlassEffect()
+                if let tint = props?.tint.flatMap(ColorUtil.from(hex:)) {
+                    glassEffect.tintColor = tint
+                }
+                effect = glassEffect
+            } else {
+                effect = UIBlurEffect(style: .systemMaterial)
+            }
+            let control = UIVisualEffectView(effect: effect)
+            control.clipsToBounds = true
+            control.layer.cornerRadius = CGFloat(props?.cornerRadius ?? 18)
+            return control
+
         default:
             return nil
         }
@@ -187,7 +246,16 @@ final class ComponentsOverlayController: UIViewController {
     // MARK: updates
 
     func update(id: String, props: ComponentPropsArgs) -> Bool {
-        guard let (_, control) = components[id] else { return false }
+        guard let (container, control) = components[id] else { return false }
+        // Geometry updates (DOM scroll/resize sync).
+        if props.x != nil || props.y != nil || props.width != nil || props.height != nil {
+            var frame = container.frame
+            if let w = props.width { frame.size.width = CGFloat(w) }
+            if let h = props.height { frame.size.height = CGFloat(h) }
+            if let x = props.x { frame.origin.x = CGFloat(x) }
+            if let y = props.y { frame.origin.y = CGFloat(y) }
+            container.frame = frame
+        }
         if let toggle = control as? UISwitch, let on = props.on {
             toggle.setOn(on, animated: true)
         }

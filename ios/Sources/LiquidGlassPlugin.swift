@@ -46,6 +46,11 @@ class SetBadgeArgs: Decodable {
 class LiquidGlassPlugin: Plugin {
     private var overlay: TabBarOverlayController?
     private var componentsOverlay: ComponentsOverlayController?
+    private var webView: WKWebView?
+
+    @objc public override func load(webview: WKWebView) {
+        self.webView = webview
+    }
 
     @objc public func configureTabBar(_ invoke: Invoke) throws {
         let args = try invoke.parseArgs(ConfigureTabBarArgs.self)
@@ -126,7 +131,7 @@ class LiquidGlassPlugin: Plugin {
                 return
             }
             let overlay = self.componentsOverlay ?? self.mountComponents(on: host)
-            overlay.create(args)
+            overlay.create(args, webView: self.webView)
             invoke.resolve()
         }
     }

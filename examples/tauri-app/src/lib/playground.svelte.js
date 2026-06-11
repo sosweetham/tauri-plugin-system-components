@@ -13,6 +13,9 @@ export const pg = $state({
   background: null,
   /** hex accent for the native tab bar; '' → system default */
   tabTint: '',
+  /** native glass cards mode: glass panels below the webview back the
+   *  Home-page cards, synced to their DOM rects */
+  nativeCards: false,
 });
 
 export const tabs = [

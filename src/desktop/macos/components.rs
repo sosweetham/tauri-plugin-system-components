@@ -3,18 +3,21 @@
 //! Interactive controls report through the `liquid-glass://component-event`
 //! Tauri event (the desktop counterpart of the iOS plugin-event channel).
 
-use objc2::msg_send;
 use objc2::rc::Retained;
+use objc2::{msg_send, sel};
 use objc2_app_kit::{
-    NSAutoresizingMaskOptions, NSBezelStyle, NSButton, NSColor, NSImage, NSImageView,
-    NSProgressIndicator, NSProgressIndicatorStyle, NSSlider, NSSwitch, NSView,
+    NSAutoresizingMaskOptions, NSBezelStyle, NSButton, NSColor, NSImage, NSImageScaling,
+    NSImageView, NSProgressIndicator, NSProgressIndicatorStyle, NSSlider, NSSwitch,
+    NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView,
+    NSView, NSWindowOrderingMode,
 };
-use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString};
+use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri::{AppHandle, Emitter, Runtime, WebviewWindow};
 
 use super::{
-    attach_target, circular_image, content_view, find_subview, glass_capsule, image_from_base64,
-    on_main_thread, parse_hex_color, set_identifier, ActionTarget, ID_PREFIX,
+    attach_target, circular_image, content_view, find_subview, find_webview, glass_capsule,
+    glass_class, image_from_base64, on_main_thread, parse_hex_color, set_identifier, ActionTarget,
+    ID_PREFIX,
 };
 use crate::models::{
     ComponentAnchor, ComponentEventPayload, ComponentKind, ComponentProps, CreateComponentOptions,
@@ -188,11 +191,56 @@ pub fn create<R: Runtime>(
                 if let Some(image) = decode_image(props, side) {
                     view.setImage(Some(&image));
                 }
+                view.setImageScaling(NSImageScaling::ScaleAxesIndependently);
                 view.setFrameSize(NSSize::new(
                     props.width.unwrap_or(side),
                     props.height.unwrap_or(side),
                 ));
                 Retained::into_super(Retained::into_super(view))
+            }
+            ComponentKind::Glass => {
+                let radius = props.corner_radius.unwrap_or(18.0);
+                let view: Retained<NSView> = match glass_class() {
+                    Some(cls) => {
+                        let glass: Retained<NSView> = unsafe { msg_send![cls, new] };
+                        unsafe {
+                            if glass.respondsToSelector(sel!(setCornerRadius:)) {
+                                let _: () = msg_send![&*glass, setCornerRadius: radius];
+                            }
+                            if let Some((r, g, b, a)) =
+                                props.tint.as_deref().and_then(parse_hex_color)
+                            {
+                                if glass.respondsToSelector(sel!(setTintColor:)) {
+                                    let color =
+                                        NSColor::colorWithSRGBRed_green_blue_alpha(r, g, b, a);
+                                    let _: () = msg_send![&*glass, setTintColor: &*color];
+                                }
+                            }
+                        }
+                        glass
+                    }
+                    None => {
+                        let effect = NSVisualEffectView::new(mtm);
+                        effect.setMaterial(NSVisualEffectMaterial::HUDWindow);
+                        effect.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
+                        effect.setState(NSVisualEffectState::Active);
+                        unsafe {
+                            effect.setWantsLayer(true);
+                            let layer: *mut objc2::runtime::AnyObject =
+                                msg_send![&*effect, layer];
+                            if !layer.is_null() {
+                                let _: () = msg_send![layer, setCornerRadius: radius];
+                                let _: () = msg_send![layer, setMasksToBounds: true];
+                            }
+                        }
+                        Retained::into_super(effect)
+                    }
+                };
+                view.setFrameSize(NSSize::new(
+                    props.width.unwrap_or(200.0),
+                    props.height.unwrap_or(120.0),
+                ));
+                view
             }
         };
 
@@ -222,6 +270,11 @@ pub fn create<R: Runtime>(
             let holder = NSView::new(mtm);
             holder.setFrameSize(control_size);
             control.setFrameOrigin(NSPoint::new(0.0, 0.0));
+            // Track the holder when it's resized (DOM-synced glass panels).
+            control.setAutoresizingMask(
+                NSAutoresizingMaskOptions::ViewWidthSizable
+                    | NSAutoresizingMaskOptions::ViewHeightSizable,
+            );
             holder.addSubview(&control);
             holder
         };
@@ -230,7 +283,7 @@ pub fn create<R: Runtime>(
         // Anchor placement (AppKit coordinates: y grows upward).
         let bounds = content.bounds();
         let (bw, bh) = (bounds.size.width, bounds.size.height);
-        let size = container.frame().size;
+        let mut size = container.frame().size;
         let (w, h) = (size.width, size.height);
         let (x, y, mask) = match options.anchor {
             ComponentAnchor::TopLeading => (
@@ -265,11 +318,38 @@ pub fn create<R: Runtime>(
                     | NSAutoresizingMaskOptions::ViewMinYMargin
                     | NSAutoresizingMaskOptions::ViewMaxYMargin,
             ),
+            // CSS coordinates: y from the top, so flip into AppKit space.
+            ComponentAnchor::Absolute => (
+                props.x.unwrap_or(0.0),
+                bh - props.y.unwrap_or(0.0) - h,
+                NSAutoresizingMaskOptions::ViewMinYMargin,
+            ),
+            ComponentAnchor::Fill => {
+                size = bounds.size;
+                (
+                    0.0,
+                    0.0,
+                    NSAutoresizingMaskOptions::ViewWidthSizable
+                        | NSAutoresizingMaskOptions::ViewHeightSizable,
+                )
+            }
         };
         container.setFrame(NSRect::new(NSPoint::new(x, y), size));
         container.setAutoresizingMask(mask);
 
-        content.addSubview(&container);
+        if options.below {
+            // Just under the webview: above previously-inserted below-views
+            // (e.g. a fill background), refracting them; DOM content renders
+            // sharp on top through the transparent webview.
+            let webview = find_webview(&content);
+            content.addSubview_positioned_relativeTo(
+                &container,
+                NSWindowOrderingMode::Below,
+                webview.as_deref(),
+            );
+        } else {
+            content.addSubview(&container);
+        }
         Ok(())
     })
 }
@@ -283,6 +363,30 @@ pub fn update<R: Runtime>(
         let control = find_subview(&content, &inner_id(&options.id))
             .ok_or_else(|| Error::WindowHandle(format!("unknown component: {}", options.id)))?;
         let props = &options.props;
+
+        // Geometry updates (DOM scroll/resize sync) move the container.
+        if props.x.is_some() || props.y.is_some() || props.width.is_some() || props.height.is_some()
+        {
+            if let Some(container) = find_subview(&content, &container_id(&options.id)) {
+                let bh = unsafe { container.superview() }
+                    .map(|s| s.bounds().size.height)
+                    .unwrap_or(0.0);
+                let mut frame = container.frame();
+                if let Some(w) = props.width {
+                    frame.size.width = w;
+                }
+                if let Some(h) = props.height {
+                    frame.size.height = h;
+                }
+                if let Some(x) = props.x {
+                    frame.origin.x = x;
+                }
+                if let Some(y) = props.y {
+                    frame.origin.y = bh - y - frame.size.height;
+                }
+                container.setFrame(frame);
+            }
+        }
         unsafe {
             if let Some(on) = props.on {
                 let _: () = msg_send![&*control, setState: if on { 1isize } else { 0 }];
