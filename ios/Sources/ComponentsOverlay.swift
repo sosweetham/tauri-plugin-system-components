@@ -282,17 +282,6 @@ final class ComponentsOverlayController: UIViewController {
     }
 
     private static func color(fromHex hex: String) -> UIColor? {
-        var value = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        if value.hasPrefix("#") { value.removeFirst() }
-        guard value.count == 6 || value.count == 8,
-            let parsed = UInt64(value, radix: 16)
-        else { return nil }
-        let has_alpha = value.count == 8
-        let divisor: CGFloat = 255
-        let r = CGFloat((parsed >> (has_alpha ? 24 : 16)) & 0xFF) / divisor
-        let g = CGFloat((parsed >> (has_alpha ? 16 : 8)) & 0xFF) / divisor
-        let b = CGFloat((parsed >> (has_alpha ? 8 : 0)) & 0xFF) / divisor
-        let a = has_alpha ? CGFloat(parsed & 0xFF) / divisor : 1
-        return UIColor(red: r, green: g, blue: b, alpha: a)
+        ColorUtil.from(hex: hex)
     }
 }

@@ -27,6 +27,11 @@ export interface ConfigureTabBarOptions {
   items: TabItem[];
   /** Tab to select initially; defaults to the first item. */
   selectedId?: string;
+  /**
+   * Hex accent color `#RRGGBB[AA]` — selected-item color on iOS, glass
+   * capsule tint + selected segment color on macOS.
+   */
+  tint?: string;
 }
 
 /** Space the web content should reserve so the floating bar doesn't cover it. */

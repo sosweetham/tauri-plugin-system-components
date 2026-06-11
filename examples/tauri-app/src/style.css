@@ -132,6 +132,58 @@ button:active {
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
+/* Fixed photo background — content scrolls over it so the glass bar
+   refracts both the photo and the moving content. */
+.photo-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+}
+
+/* Playground form controls */
+.field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+
+.field label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+}
+
+.field input[type='file'] {
+  max-width: 220px;
+  font-size: 0.8rem;
+}
+
+.field input[type='color'] {
+  width: 42px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  padding: 0;
+}
+
+.field input[type='range'] {
+  width: 160px;
+}
+
+.avatar-preview {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
 /* HTML fallback tab bar (desktop / pre-plugin) */
 .tab-bar-html {
   position: fixed;

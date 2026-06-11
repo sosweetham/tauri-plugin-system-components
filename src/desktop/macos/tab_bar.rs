@@ -3,18 +3,18 @@
 
 use std::sync::{Arc, Mutex};
 
-use objc2::msg_send;
 use objc2::rc::Retained;
+use objc2::{msg_send, sel};
 use objc2_app_kit::{
-    NSAutoresizingMaskOptions, NSControlSize, NSImage, NSImageScaling, NSSegmentSwitchTracking,
-    NSSegmentedControl,
+    NSAutoresizingMaskOptions, NSColor, NSControlSize, NSImage, NSImageScaling,
+    NSSegmentSwitchTracking, NSSegmentedControl,
 };
-use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString};
+use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri::{AppHandle, Emitter, Runtime, WebviewWindow};
 
 use super::{
     attach_target, circular_image, content_view, find_subview, glass_capsule, image_from_base64,
-    on_main_thread, set_identifier, ActionTarget, ID_PREFIX,
+    on_main_thread, parse_hex_color, set_identifier, ActionTarget, ID_PREFIX,
 };
 use crate::models::{ConfigureTabBarOptions, TabBarInsets, TabSelectedPayload};
 use crate::Error;
@@ -123,6 +123,18 @@ pub fn configure<R: Runtime>(
 
         control.setFrameOrigin(NSPoint::new(BAR_PADDING_X, BAR_PADDING_Y));
         let bar = glass_capsule(mtm, &control, bar_size.height / 2.0);
+        if let Some((r, g, b, a)) = options.tint.as_deref().and_then(parse_hex_color) {
+            let color = NSColor::colorWithSRGBRed_green_blue_alpha(r, g, b, a);
+            control.setSelectedSegmentBezelColor(Some(&color));
+            // Glass capsule tint (macOS 26 NSGlassEffectView only).
+            unsafe {
+                if bar.respondsToSelector(sel!(setTintColor:)) {
+                    // Halve the alpha so the glass stays translucent.
+                    let tinted = NSColor::colorWithSRGBRed_green_blue_alpha(r, g, b, a * 0.5);
+                    let _: () = msg_send![&*bar, setTintColor: &*tinted];
+                }
+            }
+        }
         bar.setFrame(NSRect::new(bar_origin, bar_size));
         // Flexible left/right/top margins keep the capsule pinned to the
         // bottom center as the window resizes.

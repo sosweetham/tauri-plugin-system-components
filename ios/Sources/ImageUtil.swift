@@ -8,6 +8,24 @@
 
 import UIKit
 
+enum ColorUtil {
+    /// Parses `#RRGGBB` / `#RRGGBBAA` (leading `#` optional).
+    static func from(hex: String) -> UIColor? {
+        var value = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("#") { value.removeFirst() }
+        guard value.count == 6 || value.count == 8,
+            let parsed = UInt64(value, radix: 16)
+        else { return nil }
+        let hasAlpha = value.count == 8
+        let divisor: CGFloat = 255
+        let r = CGFloat((parsed >> (hasAlpha ? 24 : 16)) & 0xFF) / divisor
+        let g = CGFloat((parsed >> (hasAlpha ? 16 : 8)) & 0xFF) / divisor
+        let b = CGFloat((parsed >> (hasAlpha ? 8 : 0)) & 0xFF) / divisor
+        let a = hasAlpha ? CGFloat(parsed & 0xFF) / divisor : 1
+        return UIColor(red: r, green: g, blue: b, alpha: a)
+    }
+}
+
 enum ImageUtil {
     /// Decodes a raw base64 string or a `data:` URL into a UIImage.
     static func decode(_ input: String) -> UIImage? {

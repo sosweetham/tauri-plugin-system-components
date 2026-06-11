@@ -12,12 +12,43 @@
     removeComponent,
     onComponentEvent,
   } from 'tauri-plugin-liquid-glass-api';
-  import { makeAvatar } from '../avatar.js';
+  import {
+    pg,
+    applyTabBar,
+    currentAvatar,
+    readFileAsDataUrl,
+  } from '../playground.svelte.js';
 
-  let { glass = null, nativeBar = false } = $props();
+  let { glass = null, nativeBar = false, selected = 'settings' } = $props();
   let status = $state('');
   let compEvent = $state('');
   let componentsOn = $state(false);
+
+  // Glass property knobs.
+  let tabTint = $state('#4facfe');
+  let glassRadius = $state(0);
+  let glassTint = $state('#4facfe');
+  let glassTintOn = $state(false);
+
+  async function pickImage(event, apply) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const dataUrl = await readFileAsDataUrl(file);
+    await run(file.name, () => apply(dataUrl));
+    event.target.value = '';
+  }
+
+  async function reconfigure() {
+    if (nativeBar) await applyTabBar(selected);
+  }
+
+  async function applyWindowGlass() {
+    await setWindowGlass({
+      cornerRadius: glassRadius > 0 ? glassRadius : undefined,
+      tintColor: glassTintOn ? glassTint : undefined,
+    });
+    document.body.classList.add('desktop-glass');
+  }
 
   const COMPONENT_IDS = [
     'demo-switch',
@@ -58,7 +89,7 @@
       kind: 'image',
       anchor: 'topTrailing',
       dy: 72,
-      props: { image: makeAvatar('P'), circular: true, width: 48, height: 48 },
+      props: { image: currentAvatar(), circular: true, width: 48, height: 48 },
     });
     await createComponent({
       id: 'demo-button',
@@ -97,6 +128,75 @@
   <h1>Settings</h1>
   <p class="muted">Debug controls for the plugin commands.</p>
 </div>
+
+<div class="card">
+  <h2>Appearance playground</h2>
+  <div class="field">
+    <img class="avatar-preview" src={pg.avatar ?? currentAvatar()} alt="avatar" />
+    <label>
+      Profile image
+      <input
+        type="file"
+        accept="image/*"
+        onchange={(e) =>
+          pickImage(e, async (dataUrl) => {
+            pg.avatar = dataUrl;
+            await reconfigure();
+          })}
+      />
+    </label>
+  </div>
+  <div class="field">
+    <label>
+      Background photo (scroll the pages to watch the glass refract it)
+      <input
+        type="file"
+        accept="image/*"
+        onchange={(e) => pickImage(e, async (dataUrl) => (pg.background = dataUrl))}
+      />
+    </label>
+  </div>
+  <button
+    onclick={() =>
+      run('reset images', async () => {
+        pg.avatar = null;
+        pg.background = null;
+        await reconfigure();
+      })}
+  >
+    Reset images
+  </button>
+</div>
+
+{#if nativeBar}
+  <div class="card">
+    <h2>Tab bar properties</h2>
+    <div class="field">
+      <label>
+        Accent tint
+        <input type="color" bind:value={tabTint} />
+      </label>
+      <button
+        onclick={() =>
+          run('tint', async () => {
+            pg.tabTint = tabTint;
+            await reconfigure();
+          })}
+      >
+        Apply
+      </button>
+      <button
+        onclick={() =>
+          run('clear tint', async () => {
+            pg.tabTint = '';
+            await reconfigure();
+          })}
+      >
+        Clear
+      </button>
+    </div>
+  </div>
+{/if}
 
 {#if nativeBar}
   <div class="card">
@@ -146,13 +246,23 @@
     <p class="muted">
       supported: {glass.supported} · fallback: {glass.fallback}
     </p>
-    <button
-      onclick={() =>
-        run('setWindowGlass', async () => {
-          await setWindowGlass({});
-          document.body.classList.add('desktop-glass');
-        })}
-    >
+    <div class="field">
+      <label>
+        Corner radius: {glassRadius}
+        <input type="range" min="0" max="48" bind:value={glassRadius} />
+      </label>
+    </div>
+    <div class="field">
+      <label>
+        Tint
+        <input type="color" bind:value={glassTint} />
+      </label>
+      <label>
+        <input type="checkbox" bind:checked={glassTintOn} />
+        use tint
+      </label>
+    </div>
+    <button onclick={() => run('setWindowGlass', applyWindowGlass)}>
       Apply glass
     </button>
     <button

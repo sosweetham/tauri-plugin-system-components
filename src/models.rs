@@ -31,6 +31,10 @@ pub struct ConfigureTabBarOptions {
     /// Tab to select initially; defaults to the first item.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selected_id: Option<String>,
+    /// Hex accent color `#RRGGBB[AA]` — selected-item color on iOS, glass
+    /// capsule tint + selected segment color on macOS.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tint: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

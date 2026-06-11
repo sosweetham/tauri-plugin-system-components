@@ -30,6 +30,8 @@ class TabItemArgs: Decodable {
 class ConfigureTabBarArgs: Decodable {
     let items: [TabItemArgs]
     let selectedId: String?
+    /// Hex accent color — applied as UITabBar.tintColor (selected item).
+    let tint: String?
 }
 
 class SelectTabArgs: Decodable {
@@ -60,6 +62,7 @@ class LiquidGlassPlugin: Plugin {
             // Idempotent: reconfiguring updates the mounted bar in place.
             let overlay = self.overlay ?? self.mount(on: host)
             overlay.apply(items: args.items, selectedId: args.selectedId)
+            overlay.tabBar.tintColor = args.tint.flatMap(ColorUtil.from(hex:))
             invoke.resolve()
         }
     }
