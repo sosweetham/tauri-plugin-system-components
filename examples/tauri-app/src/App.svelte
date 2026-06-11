@@ -54,12 +54,9 @@
   const Page = $derived(pages[selected]);
 </script>
 
-{#if pg.background && !pg.nativeCards}
+{#if pg.background}
   <!-- Fixed photo layer: content scrolls over it, so the glass bar refracts
-       both the photo and the moving content. In native-cards mode the photo
-       moves to the NATIVE backdrop layer instead — painting it in the DOM
-       would sit on top of (and completely hide) the glass panels below the
-       webview. -->
+       both the photo and the moving content. -->
   <div class="photo-bg" style:background-image={`url(${pg.background})`}></div>
 {/if}
 
