@@ -4,11 +4,13 @@ Default permissions for the liquid-glass plugin.
 
 #### Granted Permissions
 
-- Full control of the native iOS tab bar (`configure_tab_bar`,
+- Full control of the native tab bar (`configure_tab_bar`,
   `remove_tab_bar`, `show_tab_bar`, `hide_tab_bar`, `select_tab`,
   `set_badge`, `get_tab_bar_insets`).
-- `register_listener` / `remove_listener` — required for `onTabSelected`
-  event subscriptions.
+- Native overlay components (`create_component`, `update_component`,
+  `remove_component`).
+- `register_listener` / `remove_listener` — required for `onTabSelected` /
+  `onComponentEvent` subscriptions.
 - macOS window glass (`is_glass_supported`, `set_window_glass`,
   `clear_window_glass`).
 
@@ -21,6 +23,9 @@ Default permissions for the liquid-glass plugin.
 - `allow-select-tab`
 - `allow-set-badge`
 - `allow-get-tab-bar-insets`
+- `allow-create-component`
+- `allow-update-component`
+- `allow-remove-component`
 - `allow-register-listener`
 - `allow-remove-listener`
 - `allow-is-glass-supported`
@@ -84,6 +89,32 @@ Enables the configure_tab_bar command without any pre-configured scope.
 <td>
 
 Denies the configure_tab_bar command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:allow-create-component`
+
+</td>
+<td>
+
+Enables the create_component command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:deny-create-component`
+
+</td>
+<td>
+
+Denies the create_component command without any pre-configured scope.
 
 </td>
 </tr>
@@ -188,6 +219,32 @@ Enables the register_listener command without any pre-configured scope.
 <td>
 
 Denies the register_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:allow-remove-component`
+
+</td>
+<td>
+
+Enables the remove_component command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:deny-remove-component`
+
+</td>
+<td>
+
+Denies the remove_component command without any pre-configured scope.
 
 </td>
 </tr>
@@ -344,6 +401,32 @@ Enables the show_tab_bar command without any pre-configured scope.
 <td>
 
 Denies the show_tab_bar command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:allow-update-component`
+
+</td>
+<td>
+
+Enables the update_component command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:deny-update-component`
+
+</td>
+<td>
+
+Denies the update_component command without any pre-configured scope.
 
 </td>
 </tr>

@@ -5,7 +5,8 @@ import PackageDescription
 let package = Package(
     name: "tauri-plugin-liquid-glass",
     platforms: [
-        .iOS(.v14),
+        // UIButton.Configuration (used by the components overlay) needs 15.
+        .iOS(.v15),
         .macOS(.v12),
     ],
     products: [

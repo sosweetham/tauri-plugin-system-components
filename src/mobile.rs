@@ -88,6 +88,18 @@ impl<R: Runtime> LiquidGlass<R> {
         ios_command!(self, "getTabBarInsets", ())
     }
 
+    pub fn create_component(&self, options: CreateComponentOptions) -> crate::Result<()> {
+        ios_command!(self, "createComponent", options)
+    }
+
+    pub fn update_component(&self, options: UpdateComponentOptions) -> crate::Result<()> {
+        ios_command!(self, "updateComponent", options)
+    }
+
+    pub fn remove_component(&self, options: RemoveComponentOptions) -> crate::Result<()> {
+        ios_command!(self, "removeComponent", options)
+    }
+
     // Window glass is a macOS (desktop) concept; these never reach Swift.
 
     pub fn is_glass_supported(&self) -> crate::Result<GlassSupport> {

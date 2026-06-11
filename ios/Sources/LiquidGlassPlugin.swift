@@ -18,7 +18,12 @@ import WebKit
 class TabItemArgs: Decodable {
     let id: String
     let title: String
-    let sfSymbol: String
+    let sfSymbol: String?
+    /// Bitmap icon as base64 (raw or data: URL) — e.g. a user avatar.
+    /// Takes precedence over sfSymbol.
+    let image: String?
+    /// Clip the bitmap to a circle (avatar style).
+    let circular: Bool?
     let badge: String?
 }
 
@@ -38,6 +43,7 @@ class SetBadgeArgs: Decodable {
 
 class LiquidGlassPlugin: Plugin {
     private var overlay: TabBarOverlayController?
+    private var componentsOverlay: ComponentsOverlayController?
 
     @objc public func configureTabBar(_ invoke: Invoke) throws {
         let args = try invoke.parseArgs(ConfigureTabBarArgs.self)
@@ -108,6 +114,40 @@ class LiquidGlassPlugin: Plugin {
         }
     }
 
+    @objc public func createComponent(_ invoke: Invoke) throws {
+        let args = try invoke.parseArgs(CreateComponentArgs.self)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard let host = self.manager.viewController else {
+                invoke.reject("host view controller unavailable")
+                return
+            }
+            let overlay = self.componentsOverlay ?? self.mountComponents(on: host)
+            overlay.create(args)
+            invoke.resolve()
+        }
+    }
+
+    @objc public func updateComponent(_ invoke: Invoke) throws {
+        let args = try invoke.parseArgs(UpdateComponentArgs.self)
+        DispatchQueue.main.async { [weak self] in
+            guard let overlay = self?.componentsOverlay, overlay.update(id: args.id, props: args.props)
+            else {
+                invoke.reject("unknown component: \(args.id)")
+                return
+            }
+            invoke.resolve()
+        }
+    }
+
+    @objc public func removeComponent(_ invoke: Invoke) throws {
+        let args = try invoke.parseArgs(RemoveComponentArgs.self)
+        DispatchQueue.main.async { [weak self] in
+            self?.componentsOverlay?.remove(id: args.id)
+            invoke.resolve()
+        }
+    }
+
     @objc public func getTabBarInsets(_ invoke: Invoke) {
         DispatchQueue.main.async { [weak self] in
             let bottom = self?.overlay?.bottomInset ?? 0
@@ -149,6 +189,30 @@ class LiquidGlassPlugin: Plugin {
         ])
         overlay.didMove(toParent: host)
         self.overlay = overlay
+        return overlay
+    }
+
+    /// Adds the components overlay as a child VC of the webview's host VC,
+    /// same pattern as the tab bar.
+    private func mountComponents(on host: UIViewController) -> ComponentsOverlayController {
+        let overlay = ComponentsOverlayController()
+        overlay.onEvent = { [weak self] id, event, on, value in
+            var data: JSObject = ["id": id, "event": event]
+            if let on { data["on"] = on }
+            if let value { data["value"] = value }
+            self?.trigger("componentEvent", data: data)
+        }
+        host.addChild(overlay)
+        overlay.view.translatesAutoresizingMaskIntoConstraints = false
+        host.view.addSubview(overlay.view)
+        NSLayoutConstraint.activate([
+            overlay.view.leadingAnchor.constraint(equalTo: host.view.leadingAnchor),
+            overlay.view.trailingAnchor.constraint(equalTo: host.view.trailingAnchor),
+            overlay.view.topAnchor.constraint(equalTo: host.view.topAnchor),
+            overlay.view.bottomAnchor.constraint(equalTo: host.view.bottomAnchor),
+        ])
+        overlay.didMove(toParent: host)
+        self.componentsOverlay = overlay
         return overlay
     }
 }

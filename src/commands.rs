@@ -49,6 +49,30 @@ pub(crate) async fn get_tab_bar_insets<R: Runtime>(app: AppHandle<R>) -> Result<
 }
 
 #[command]
+pub(crate) async fn create_component<R: Runtime>(
+    app: AppHandle<R>,
+    options: CreateComponentOptions,
+) -> Result<()> {
+    app.liquid_glass().create_component(options)
+}
+
+#[command]
+pub(crate) async fn update_component<R: Runtime>(
+    app: AppHandle<R>,
+    options: UpdateComponentOptions,
+) -> Result<()> {
+    app.liquid_glass().update_component(options)
+}
+
+#[command]
+pub(crate) async fn remove_component<R: Runtime>(
+    app: AppHandle<R>,
+    options: RemoveComponentOptions,
+) -> Result<()> {
+    app.liquid_glass().remove_component(options)
+}
+
+#[command]
 pub(crate) async fn is_glass_supported<R: Runtime>(app: AppHandle<R>) -> Result<GlassSupport> {
     app.liquid_glass().is_glass_supported()
 }

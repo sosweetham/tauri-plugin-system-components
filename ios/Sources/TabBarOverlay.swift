@@ -50,14 +50,23 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         ])
     }
 
+    /// Side of bitmap tab icons (avatars), in points.
+    private static let imageSide: CGFloat = 26
+
     func apply(items: [TabItemArgs], selectedId: String?) {
         ids = items.map { $0.id }
         let barItems = items.enumerated().map { index, item -> UITabBarItem in
-            let barItem = UITabBarItem(
-                title: item.title,
-                image: UIImage(systemName: item.sfSymbol),
-                tag: index
-            )
+            var image: UIImage?
+            if let b64 = item.image, let decoded = ImageUtil.decode(b64) {
+                image = ImageUtil.icon(
+                    decoded,
+                    side: Self.imageSide,
+                    circular: item.circular ?? false
+                )
+            } else if let symbol = item.sfSymbol {
+                image = UIImage(systemName: symbol)
+            }
+            let barItem = UITabBarItem(title: item.title, image: image, tag: index)
             barItem.badgeValue = item.badge
             return barItem
         }

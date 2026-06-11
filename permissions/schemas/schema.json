@@ -319,6 +319,18 @@
           "markdownDescription": "Denies the configure_tab_bar command without any pre-configured scope."
         },
         {
+          "description": "Enables the create_component command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-component",
+          "markdownDescription": "Enables the create_component command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the create_component command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-component",
+          "markdownDescription": "Denies the create_component command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_tab_bar_insets command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-tab-bar-insets",
@@ -365,6 +377,18 @@
           "type": "string",
           "const": "deny-register-listener",
           "markdownDescription": "Denies the register_listener command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the remove_component command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-remove-component",
+          "markdownDescription": "Enables the remove_component command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the remove_component command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-remove-component",
+          "markdownDescription": "Denies the remove_component command without any pre-configured scope."
         },
         {
           "description": "Enables the remove_listener command without any pre-configured scope.",
@@ -439,10 +463,22 @@
           "markdownDescription": "Denies the show_tab_bar command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the liquid-glass plugin.\n\n#### Granted Permissions\n\n- Full control of the native iOS tab bar (`configure_tab_bar`,\n  `remove_tab_bar`, `show_tab_bar`, `hide_tab_bar`, `select_tab`,\n  `set_badge`, `get_tab_bar_insets`).\n- `register_listener` / `remove_listener` — required for `onTabSelected`\n  event subscriptions.\n- macOS window glass (`is_glass_supported`, `set_window_glass`,\n  `clear_window_glass`).\n\n#### This default permission set includes:\n\n- `allow-configure-tab-bar`\n- `allow-remove-tab-bar`\n- `allow-show-tab-bar`\n- `allow-hide-tab-bar`\n- `allow-select-tab`\n- `allow-set-badge`\n- `allow-get-tab-bar-insets`\n- `allow-register-listener`\n- `allow-remove-listener`\n- `allow-is-glass-supported`\n- `allow-set-window-glass`\n- `allow-clear-window-glass`",
+          "description": "Enables the update_component command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-component",
+          "markdownDescription": "Enables the update_component command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_component command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-component",
+          "markdownDescription": "Denies the update_component command without any pre-configured scope."
+        },
+        {
+          "description": "Default permissions for the liquid-glass plugin.\n\n#### Granted Permissions\n\n- Full control of the native tab bar (`configure_tab_bar`,\n  `remove_tab_bar`, `show_tab_bar`, `hide_tab_bar`, `select_tab`,\n  `set_badge`, `get_tab_bar_insets`).\n- Native overlay components (`create_component`, `update_component`,\n  `remove_component`).\n- `register_listener` / `remove_listener` — required for `onTabSelected` /\n  `onComponentEvent` subscriptions.\n- macOS window glass (`is_glass_supported`, `set_window_glass`,\n  `clear_window_glass`).\n\n#### This default permission set includes:\n\n- `allow-configure-tab-bar`\n- `allow-remove-tab-bar`\n- `allow-show-tab-bar`\n- `allow-hide-tab-bar`\n- `allow-select-tab`\n- `allow-set-badge`\n- `allow-get-tab-bar-insets`\n- `allow-create-component`\n- `allow-update-component`\n- `allow-remove-component`\n- `allow-register-listener`\n- `allow-remove-listener`\n- `allow-is-glass-supported`\n- `allow-set-window-glass`\n- `allow-clear-window-glass`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the liquid-glass plugin.\n\n#### Granted Permissions\n\n- Full control of the native iOS tab bar (`configure_tab_bar`,\n  `remove_tab_bar`, `show_tab_bar`, `hide_tab_bar`, `select_tab`,\n  `set_badge`, `get_tab_bar_insets`).\n- `register_listener` / `remove_listener` — required for `onTabSelected`\n  event subscriptions.\n- macOS window glass (`is_glass_supported`, `set_window_glass`,\n  `clear_window_glass`).\n\n#### This default permission set includes:\n\n- `allow-configure-tab-bar`\n- `allow-remove-tab-bar`\n- `allow-show-tab-bar`\n- `allow-hide-tab-bar`\n- `allow-select-tab`\n- `allow-set-badge`\n- `allow-get-tab-bar-insets`\n- `allow-register-listener`\n- `allow-remove-listener`\n- `allow-is-glass-supported`\n- `allow-set-window-glass`\n- `allow-clear-window-glass`"
+          "markdownDescription": "Default permissions for the liquid-glass plugin.\n\n#### Granted Permissions\n\n- Full control of the native tab bar (`configure_tab_bar`,\n  `remove_tab_bar`, `show_tab_bar`, `hide_tab_bar`, `select_tab`,\n  `set_badge`, `get_tab_bar_insets`).\n- Native overlay components (`create_component`, `update_component`,\n  `remove_component`).\n- `register_listener` / `remove_listener` — required for `onTabSelected` /\n  `onComponentEvent` subscriptions.\n- macOS window glass (`is_glass_supported`, `set_window_glass`,\n  `clear_window_glass`).\n\n#### This default permission set includes:\n\n- `allow-configure-tab-bar`\n- `allow-remove-tab-bar`\n- `allow-show-tab-bar`\n- `allow-hide-tab-bar`\n- `allow-select-tab`\n- `allow-set-badge`\n- `allow-get-tab-bar-insets`\n- `allow-create-component`\n- `allow-update-component`\n- `allow-remove-component`\n- `allow-register-listener`\n- `allow-remove-listener`\n- `allow-is-glass-supported`\n- `allow-set-window-glass`\n- `allow-clear-window-glass`"
         }
       ]
     }

@@ -8,6 +8,7 @@
     setWindowGlass,
   } from 'tauri-plugin-liquid-glass-api';
   import TabBarHtml from './lib/TabBarHtml.svelte';
+  import { makeAvatar } from './lib/avatar.js';
   import Home from './lib/pages/Home.svelte';
   import Gallery from './lib/pages/Gallery.svelte';
   import Profile from './lib/pages/Profile.svelte';
@@ -16,7 +17,9 @@
   const tabs = [
     { id: 'home', title: 'Home', sfSymbol: 'house.fill', icon: '⌂' },
     { id: 'gallery', title: 'Gallery', sfSymbol: 'photo.on.rectangle', icon: '▦' },
-    { id: 'profile', title: 'Profile', sfSymbol: 'person.crop.circle', icon: '◉' },
+    // Bitmap icon: the user's avatar rendered natively in the tab bar,
+    // clipped to a circle (the Pendi profile-tab pattern).
+    { id: 'profile', title: 'Profile', image: makeAvatar('P'), circular: true, icon: '◉' },
     { id: 'settings', title: 'Settings', sfSymbol: 'gearshape.fill', icon: '⚙' },
   ];
 
@@ -39,7 +42,13 @@
       // floating glass capsule. Windows/Linux reject with "unsupported on
       // this platform" — the documented signal to use the HTML bar instead.
       await configureTabBar({
-        items: tabs.map(({ id, title, sfSymbol }) => ({ id, title, sfSymbol })),
+        items: tabs.map(({ id, title, sfSymbol, image, circular }) => ({
+          id,
+          title,
+          sfSymbol,
+          image,
+          circular,
+        })),
         selectedId: selected,
       });
       nativeBar = true;

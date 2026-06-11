@@ -11,7 +11,14 @@ export interface TabItem {
    * SF Symbol name (e.g. `house.fill`). Must exist on the device's OS
    * version; unknown names render a label-only item.
    */
-  sfSymbol: string;
+  sfSymbol?: string;
+  /**
+   * Bitmap icon as base64 (raw or `data:` URL) — e.g. a user avatar.
+   * Takes precedence over `sfSymbol`.
+   */
+  image?: string;
+  /** Clip the bitmap `image` to a circle (avatar style). */
+  circular?: boolean;
   /** Optional badge text (e.g. `"3"`). */
   badge?: string;
 }
@@ -26,6 +33,71 @@ export interface ConfigureTabBarOptions {
 export interface TabBarInsets {
   /** Bar height + bottom safe area, in CSS points. */
   bottom: number;
+}
+
+/** Kind of native overlay component. */
+export type ComponentKind =
+  | 'switch'
+  | 'button'
+  | 'slider'
+  | 'progress'
+  | 'image';
+
+/** Where a component is pinned, relative to the window/safe area. */
+export type ComponentAnchor =
+  | 'topLeading'
+  | 'topTrailing'
+  | 'bottomLeading'
+  | 'bottomTrailing'
+  | 'center';
+
+/** Per-kind properties. All optional; irrelevant fields are ignored. */
+export interface ComponentProps {
+  /** Button title / accessibility label. */
+  label?: string;
+  /** Switch state. */
+  on?: boolean;
+  /** Slider/progress value (progress is 0..1 by default). */
+  value?: number;
+  min?: number;
+  max?: number;
+  /** SF Symbol for buttons. */
+  sfSymbol?: string;
+  /** Bitmap as base64 (raw or `data:` URL) — image components, button icons. */
+  image?: string;
+  /** Clip the bitmap to a circle (avatar style). */
+  circular?: boolean;
+  /** Wrap the control in a floating glass capsule. */
+  glass?: boolean;
+  /** Prominent (tinted) button style. */
+  prominent?: boolean;
+  /** Hex tint color `#RRGGBB[AA]`. */
+  tint?: string;
+  /** Explicit size in points (defaults to the control's natural size). */
+  width?: number;
+  height?: number;
+}
+
+export interface CreateComponentOptions {
+  /** Stable identifier, reported back in component events. */
+  id: string;
+  kind: ComponentKind;
+  props?: ComponentProps;
+  /** Defaults to `topTrailing`. */
+  anchor?: ComponentAnchor;
+  /** Offset from the anchor, in points (grows inward). */
+  dx?: number;
+  dy?: number;
+}
+
+export interface ComponentEvent {
+  id: string;
+  /** `click` (button) or `change` (switch/slider). */
+  event: 'click' | 'change';
+  /** Switch state, on `change` events from switches. */
+  on?: boolean;
+  /** Slider value, on `change` events from sliders. */
+  value?: number;
 }
 
 export interface WindowGlassOptions {
@@ -134,6 +206,61 @@ export async function onTabSelected(
   const pluginListener = await addPluginListener<TabSelectedEvent>(
     'liquid-glass',
     'tabSelected',
+    handler,
+  ).catch(() => null);
+  return {
+    async unregister() {
+      unlistenEvent();
+      await pluginListener?.unregister();
+    },
+  };
+}
+
+/**
+ * Creates (or replaces, by `id`) a native overlay component floating over
+ * the webview: switch, button, slider, progress bar, or image view (e.g. a
+ * user avatar). iOS and macOS — rejects on Windows/Linux/Android.
+ *
+ * Interactive components report through {@link onComponentEvent}. Pass
+ * `props.glass: true` to float the control in a glass capsule (real glass
+ * on iOS 26 / macOS 26, material blur before that).
+ */
+export async function createComponent(
+  options: CreateComponentOptions,
+): Promise<void> {
+  await invoke('plugin:liquid-glass|create_component', { options });
+}
+
+/** Updates a component's props (state, value, label, image). iOS/macOS. */
+export async function updateComponent(
+  id: string,
+  props: ComponentProps,
+): Promise<void> {
+  await invoke('plugin:liquid-glass|update_component', {
+    options: { id, props },
+  });
+}
+
+/** Removes a component created with {@link createComponent}. iOS/macOS. */
+export async function removeComponent(id: string): Promise<void> {
+  await invoke('plugin:liquid-glass|remove_component', { options: { id } });
+}
+
+/**
+ * Listens for interaction with native components: button `click`s and
+ * switch/slider `change`s. Same dual-transport mechanism as
+ * {@link onTabSelected}.
+ */
+export async function onComponentEvent(
+  handler: (event: ComponentEvent) => void,
+): Promise<TabSelectedListener> {
+  const unlistenEvent = await listen<ComponentEvent>(
+    'liquid-glass://component-event',
+    (event) => handler(event.payload),
+  );
+  const pluginListener = await addPluginListener<ComponentEvent>(
+    'liquid-glass',
+    'componentEvent',
     handler,
   ).catch(() => null);
   return {

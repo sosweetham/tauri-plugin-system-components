@@ -10,7 +10,15 @@ pub struct TabItem {
     pub title: String,
     /// SF Symbol name (e.g. "house.fill"). Must exist on the device's OS
     /// version; unknown names render a label-only item.
-    pub sf_symbol: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sf_symbol: Option<String>,
+    /// Bitmap icon as base64 (raw or `data:` URL) — e.g. a user avatar.
+    /// Takes precedence over `sf_symbol`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    /// Clip the bitmap `image` to a circle (avatar style).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub circular: Option<bool>,
     /// Optional badge text (e.g. "3"). `None` shows no badge.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub badge: Option<String>,
@@ -64,6 +72,107 @@ pub struct WindowGlassOptions {
 #[serde(rename_all = "camelCase")]
 pub struct TabSelectedPayload {
     pub id: String,
+}
+
+/// Kind of native overlay component.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ComponentKind {
+    /// UISwitch / NSSwitch — emits `change` with `on`.
+    Switch,
+    /// UIButton (glass configuration on iOS 26) / NSButton — emits `click`.
+    Button,
+    /// UISlider / NSSlider — emits `change` with `value`.
+    Slider,
+    /// UIProgressView / NSProgressIndicator — display only.
+    Progress,
+    /// UIImageView / NSImageView — display only (avatars, thumbnails).
+    Image,
+}
+
+/// Where a component is pinned, relative to the window/safe area.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ComponentAnchor {
+    TopLeading,
+    #[default]
+    TopTrailing,
+    BottomLeading,
+    BottomTrailing,
+    Center,
+}
+
+/// Per-kind properties. All optional; irrelevant fields are ignored.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ComponentProps {
+    /// Text: button title, switch/slider accessibility label.
+    pub label: Option<String>,
+    /// Switch state.
+    pub on: Option<bool>,
+    /// Slider/progress value (progress is 0..1).
+    pub value: Option<f64>,
+    pub min: Option<f64>,
+    pub max: Option<f64>,
+    /// SF Symbol for buttons.
+    pub sf_symbol: Option<String>,
+    /// Bitmap as base64 (raw or `data:` URL) — image components, button icons.
+    pub image: Option<String>,
+    /// Clip the bitmap to a circle (avatar style).
+    pub circular: Option<bool>,
+    /// Wrap the control in a floating glass capsule.
+    pub glass: Option<bool>,
+    /// Prominent (tinted) button style.
+    pub prominent: Option<bool>,
+    /// Hex tint color `#RRGGBB[AA]`.
+    pub tint: Option<String>,
+    /// Explicit size in points (defaults to the control's natural size).
+    pub width: Option<f64>,
+    pub height: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateComponentOptions {
+    /// Stable identifier, reported back in component events.
+    pub id: String,
+    pub kind: ComponentKind,
+    #[serde(default)]
+    pub props: ComponentProps,
+    #[serde(default)]
+    pub anchor: ComponentAnchor,
+    /// Offset from the anchor, in points (dx grows inward/right, dy inward/down).
+    #[serde(default)]
+    pub dx: f64,
+    #[serde(default)]
+    pub dy: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateComponentOptions {
+    pub id: String,
+    pub props: ComponentProps,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveComponentOptions {
+    pub id: String,
+}
+
+/// Payload of the `liquid-glass://component-event` event on macOS (iOS
+/// delivers the same shape through the plugin event channel).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentEventPayload {
+    pub id: String,
+    /// `click` (button) or `change` (switch/slider).
+    pub event: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

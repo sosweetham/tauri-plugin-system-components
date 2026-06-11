@@ -21,6 +21,19 @@ Apple's official **Liquid Glass** components for [Tauri 2](https://tauri.app) ap
   fallback on older systems. The class is resolved dynamically at runtime, so
   the plugin builds and runs against older SDKs/systems.
 
+- **Native overlay components** on both platforms via one generic API:
+  `createComponent({ id, kind, props, anchor, dx, dy })` with kinds
+  `switch` (UISwitch/NSSwitch), `button` (glass `UIButton.Configuration`
+  on iOS 26 / NSButton), `slider`, `progress`, and `image`. Components float
+  over the webview anchored to a corner/center, optionally inside a glass
+  capsule (`props.glass: true`). Interaction arrives via
+  `onComponentEvent(({ id, event, on, value }) => …)`; state updates go
+  back with `updateComponent(id, props)`.
+- **Image data everywhere.** Tab items and components accept bitmaps as
+  base64 / `data:` URLs (`image`), decoded natively to `UIImage`/`NSImage`,
+  with `circular: true` for the avatar treatment — e.g. a user avatar as
+  the profile tab icon, rendered by the real native bar.
+
 Windows, Linux, and Android are graceful stubs: the commands reject with
 `unsupported on this platform`, which is the documented signal to fall back
 to an HTML UI (see the example app). Tab badges (`setBadge`) are iOS-only —
@@ -61,10 +74,12 @@ import {
 } from 'tauri-plugin-liquid-glass-api';
 
 try {
-  // iOS: mounts the native Liquid Glass tab bar.
+  // Native Liquid Glass tab bar (iOS UITabBar / macOS glass capsule).
   await configureTabBar({
     items: [
       { id: 'home', title: 'Home', sfSymbol: 'house.fill' },
+      // A bitmap icon — e.g. the user's avatar — clipped to a circle:
+      { id: 'profile', title: 'Profile', image: avatarDataUrl, circular: true },
       { id: 'settings', title: 'Settings', sfSymbol: 'gearshape.fill' },
     ],
     selectedId: 'home',
@@ -77,6 +92,32 @@ try {
   const { supported, fallback } = await isGlassSupported();
   await setWindowGlass({}).catch(() => {/* Windows/Linux */});
 }
+```
+
+Native overlay components:
+
+```ts
+import {
+  createComponent, updateComponent, removeComponent, onComponentEvent,
+} from 'tauri-plugin-liquid-glass-api';
+
+await createComponent({
+  id: 'wifi', kind: 'switch', anchor: 'topTrailing',
+  props: { glass: true, on: true },
+});
+await createComponent({
+  id: 'volume', kind: 'slider', anchor: 'bottomTrailing', dy: 96,
+  props: { glass: true, min: 0, max: 100, value: 40 },
+});
+await createComponent({
+  id: 'me', kind: 'image', anchor: 'topLeading',
+  props: { image: avatarDataUrl, circular: true, width: 48, height: 48 },
+});
+await onComponentEvent(({ id, event, on, value }) => {
+  if (id === 'volume' && event === 'change') setVolume(value);
+});
+await updateComponent('wifi', { on: false });
+await removeComponent('me');
 ```
 
 Other commands: `removeTabBar`, `showTabBar`, `hideTabBar`,

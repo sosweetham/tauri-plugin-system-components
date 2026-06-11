@@ -6,11 +6,13 @@ Default permissions for the liquid-glass plugin.
 
 #### Granted Permissions
 
-- Full control of the native iOS tab bar (`configure_tab_bar`,
+- Full control of the native tab bar (`configure_tab_bar`,
   `remove_tab_bar`, `show_tab_bar`, `hide_tab_bar`, `select_tab`,
   `set_badge`, `get_tab_bar_insets`).
-- `register_listener` / `remove_listener` — required for `onTabSelected`
-  event subscriptions.
+- Native overlay components (`create_component`, `update_component`,
+  `remove_component`).
+- `register_listener` / `remove_listener` — required for `onTabSelected` /
+  `onComponentEvent` subscriptions.
 - macOS window glass (`is_glass_supported`, `set_window_glass`,
   `clear_window_glass`).
 """
@@ -22,6 +24,9 @@ permissions = [
   "allow-select-tab",
   "allow-set-badge",
   "allow-get-tab-bar-insets",
+  "allow-create-component",
+  "allow-update-component",
+  "allow-remove-component",
   "allow-register-listener",
   "allow-remove-listener",
   "allow-is-glass-supported",
