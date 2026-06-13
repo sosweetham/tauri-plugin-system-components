@@ -166,34 +166,56 @@ final class ComponentsOverlayController: UIViewController {
             return control
 
         case "button":
-            var config: UIButton.Configuration
-            if #available(iOS 26.0, *) {
-                config = (props?.prominent ?? false)
-                    ? UIButton.Configuration.prominentGlass()
-                    : UIButton.Configuration.glass()
+            // UIButton.Configuration (and the glass styles) are iOS 15 / 26;
+            // iOS 14 gets a plain UIButton with the same title/icon/tint.
+            if #available(iOS 15.0, *) {
+                var config: UIButton.Configuration
+                if #available(iOS 26.0, *) {
+                    config = (props?.prominent ?? false)
+                        ? UIButton.Configuration.prominentGlass()
+                        : UIButton.Configuration.glass()
+                } else {
+                    config = (props?.prominent ?? false)
+                        ? UIButton.Configuration.filled()
+                        : UIButton.Configuration.gray()
+                }
+                config.title = props?.label
+                if let b64 = props?.image, let decoded = ImageUtil.decode(b64) {
+                    config.image = ImageUtil.icon(
+                        decoded, side: 20, circular: props?.circular ?? false)
+                    config.imagePadding = 6
+                } else if let symbol = props?.sfSymbol {
+                    config.image = UIImage(systemName: symbol)
+                    config.imagePadding = 6
+                }
+                if let tint = props?.tint.flatMap(Self.color(fromHex:)) {
+                    config.baseBackgroundColor = tint
+                }
+                let control = UIButton(configuration: config)
+                control.addAction(
+                    UIAction { [weak self] _ in
+                        self?.onEvent?(id, "click", nil, nil)
+                    }, for: .touchUpInside)
+                return control
             } else {
-                config = (props?.prominent ?? false)
-                    ? UIButton.Configuration.filled()
-                    : UIButton.Configuration.gray()
+                let control = UIButton(type: .system)
+                control.setTitle(props?.label, for: .normal)
+                if let b64 = props?.image, let decoded = ImageUtil.decode(b64) {
+                    control.setImage(
+                        ImageUtil.icon(decoded, side: 20, circular: props?.circular ?? false),
+                        for: .normal)
+                } else if let symbol = props?.sfSymbol {
+                    control.setImage(UIImage(systemName: symbol), for: .normal)
+                }
+                if let tint = props?.tint.flatMap(Self.color(fromHex:)) {
+                    control.backgroundColor = tint
+                }
+                control.addAction(
+                    UIAction { [weak self] _ in
+                        self?.onEvent?(id, "click", nil, nil)
+                    }, for: .touchUpInside)
+                return control
             }
-            config.title = props?.label
-            if let b64 = props?.image, let decoded = ImageUtil.decode(b64) {
-                config.image = ImageUtil.icon(
-                    decoded, side: 20, circular: props?.circular ?? false)
-                config.imagePadding = 6
-            } else if let symbol = props?.sfSymbol {
-                config.image = UIImage(systemName: symbol)
-                config.imagePadding = 6
-            }
-            if let tint = props?.tint.flatMap(Self.color(fromHex:)) {
-                config.baseBackgroundColor = tint
-            }
-            let control = UIButton(configuration: config)
-            control.addAction(
-                UIAction { [weak self] _ in
-                    self?.onEvent?(id, "click", nil, nil)
-                }, for: .touchUpInside)
-            return control
 
         case "slider":
             let control = UISlider()
@@ -280,15 +302,27 @@ final class ComponentsOverlayController: UIViewController {
             progress.setProgress(Float(value), animated: true)
         }
         if let button = control as? UIButton {
-            var config = button.configuration
-            if let label = props.label {
-                config?.title = label
+            // UIButton.configuration is iOS 15+; iOS 14 sets title/image directly.
+            if #available(iOS 15.0, *) {
+                var config = button.configuration
+                if let label = props.label {
+                    config?.title = label
+                }
+                if let b64 = props.image, let decoded = ImageUtil.decode(b64) {
+                    config?.image = ImageUtil.icon(
+                        decoded, side: 20, circular: props.circular ?? false)
+                }
+                button.configuration = config
+            } else {
+                if let label = props.label {
+                    button.setTitle(label, for: .normal)
+                }
+                if let b64 = props.image, let decoded = ImageUtil.decode(b64) {
+                    button.setImage(
+                        ImageUtil.icon(decoded, side: 20, circular: props.circular ?? false),
+                        for: .normal)
+                }
             }
-            if let b64 = props.image, let decoded = ImageUtil.decode(b64) {
-                config?.image = ImageUtil.icon(
-                    decoded, side: 20, circular: props.circular ?? false)
-            }
-            button.configuration = config
         }
         if let imageView = control as? UIImageView, let b64 = props.image,
             let decoded = ImageUtil.decode(b64)

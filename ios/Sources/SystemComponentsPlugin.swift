@@ -27,11 +27,21 @@ class TabItemArgs: Decodable {
     let badge: String?
 }
 
+/// The standalone account button beside the bar (Apple Music search-button
+/// style). `image` (base64 / data URL) takes precedence over `sfSymbol`.
+class AccessoryArgs: Decodable {
+    let id: String
+    let sfSymbol: String?
+    let image: String?
+}
+
 class ConfigureTabBarArgs: Decodable {
     let items: [TabItemArgs]
     let selectedId: String?
-    /// Hex accent color — applied as UITabBar.tintColor (selected item).
+    /// Hex accent color — applied to the selected item via the bar appearance.
     let tint: String?
+    /// Optional circular account button floated beside the bar.
+    let accessory: AccessoryArgs?
 }
 
 class SelectTabArgs: Decodable {
@@ -43,10 +53,34 @@ class SetBadgeArgs: Decodable {
     let value: String?
 }
 
+class SheetRowArgs: Decodable {
+    let id: String
+    let label: String
+    let detail: String?
+    /// Bitmap (base64 / data URL) — e.g. the account avatar. Wins over `sfSymbol`.
+    let image: String?
+    let sfSymbol: String?
+    let badge: String?
+    let destructive: Bool?
+    /// A non-tappable identity header row (avatar + name + email).
+    let header: Bool?
+}
+
+class PresentSheetArgs: Decodable {
+    let id: String
+    let tint: String?
+    let rows: [SheetRowArgs]
+}
+
+class DismissSheetArgs: Decodable {
+    let id: String
+}
+
 class SystemComponentsPlugin: Plugin {
     private var overlay: TabBarOverlayController?
     private var componentsOverlay: ComponentsOverlayController?
     private var webView: WKWebView?
+    private var sheets: [String: SheetController] = [:]
 
     @objc public override func load(webview: WKWebView) {
         self.webView = webview
@@ -67,7 +101,16 @@ class SystemComponentsPlugin: Plugin {
             // Idempotent: reconfiguring updates the mounted bar in place.
             let overlay = self.overlay ?? self.mount(on: host)
             overlay.apply(items: args.items, selectedId: args.selectedId)
-            overlay.tabBar.tintColor = args.tint.flatMap(ColorUtil.from(hex:))
+            overlay.applyTint(args.tint.flatMap(ColorUtil.from(hex:)))
+            if let acc = args.accessory {
+                // Avatar aspect-filled to a square; the round button clips it.
+                let image = acc.image.flatMap(ImageUtil.decode).map {
+                    ImageUtil.icon($0, side: 50, circular: false)
+                }
+                overlay.setAccessory(id: acc.id, image: image, sfSymbol: acc.sfSymbol)
+            } else {
+                overlay.setAccessory(id: nil, image: nil, sfSymbol: nil)
+            }
             invoke.resolve()
         }
     }
@@ -172,6 +215,59 @@ class SystemComponentsPlugin: Plugin {
         DispatchQueue.main.async { [weak self] in
             let bottom = self?.overlay?.bottomInset ?? 0
             invoke.resolve(["bottom": Double(bottom)])
+        }
+    }
+
+    @objc public func presentSheet(_ invoke: Invoke) throws {
+        let args = try invoke.parseArgs(PresentSheetArgs.self)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard let host = self.manager.viewController else {
+                invoke.reject("host view controller unavailable")
+                return
+            }
+            let sheet = SheetController()
+            sheet.tint = args.tint.flatMap(ColorUtil.from(hex:))
+            sheet.rows = args.rows.map { r in
+                let image = r.image.flatMap(ImageUtil.decode).map {
+                    ImageUtil.icon($0, side: r.header == true ? 40 : 24, circular: true)
+                }
+                return SheetRow(
+                    id: r.id, label: r.label, detail: r.detail, image: image,
+                    sfSymbol: r.sfSymbol, badge: r.badge,
+                    destructive: r.destructive ?? false, isHeader: r.header ?? false)
+            }
+            let sheetId = args.id
+            sheet.onSelect = { [weak self] rowId in
+                self?.trigger("sheetRow", data: ["sheetId": sheetId, "rowId": rowId])
+            }
+            sheet.onDismissed = { [weak self] in
+                self?.trigger("sheetDismissed", data: ["sheetId": sheetId])
+                self?.sheets[sheetId] = nil
+            }
+            // Sheet detents / grabber are iOS 15+; iOS 14 gets a plain modal.
+            if #available(iOS 15.0, *), let pres = sheet.sheetPresentationController {
+                pres.detents = [.medium(), .large()]
+                pres.prefersGrabberVisible = true
+                pres.preferredCornerRadius = 24
+            }
+            self.sheets[sheetId]?.dismiss(animated: false)
+            self.sheets[sheetId] = sheet
+            host.present(sheet, animated: true) {
+                sheet.presentationController?.delegate = sheet
+            }
+            invoke.resolve()
+        }
+    }
+
+    @objc public func dismissSheet(_ invoke: Invoke) throws {
+        let args = try invoke.parseArgs(DismissSheetArgs.self)
+        DispatchQueue.main.async { [weak self] in
+            if let sheet = self?.sheets[args.id] {
+                sheet.dismiss(animated: true)
+                self?.sheets[args.id] = nil
+            }
+            invoke.resolve()
         }
     }
 

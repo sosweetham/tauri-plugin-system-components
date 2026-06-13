@@ -23,6 +23,17 @@ export interface TabItem {
   badge?: string;
 }
 
+/**
+ * A standalone account button floated beside the bar (Apple Music
+ * search-button style). `image` (base64 / `data:` URL) wins over `sfSymbol`.
+ */
+export interface TabBarAccessory {
+  /** Stable id reported back in `tabSelected` events when tapped. */
+  id: string;
+  sfSymbol?: string;
+  image?: string;
+}
+
 export interface ConfigureTabBarOptions {
   items: TabItem[];
   /** Tab to select initially; defaults to the first item. */
@@ -32,6 +43,12 @@ export interface ConfigureTabBarOptions {
    * capsule tint + selected segment color on macOS.
    */
   tint?: string;
+  /**
+   * Optional circular account button beside the bar — iOS renders it as a
+   * native tab-bar accessory (the bar shrinks to make room); taps arrive
+   * through {@link onTabSelected} with this `id`. Ignored on macOS.
+   */
+  accessory?: TabBarAccessory;
 }
 
 /** Space the web content should reserve so the floating bar doesn't cover it. */
@@ -230,6 +247,98 @@ export async function onTabSelected(
   const pluginListener = await addPluginListener<TabSelectedEvent>(
     'system-components',
     'tabSelected',
+    handler,
+  ).catch(() => null);
+  return {
+    async unregister() {
+      unlistenEvent();
+      await pluginListener?.unregister();
+    },
+  };
+}
+
+/** One natively-rendered row in a native sheet (iOS). */
+export interface SheetRow {
+  /** Stable id reported in `sheetRow` events when tapped. */
+  id: string;
+  label: string;
+  /** Secondary line. */
+  detail?: string;
+  /** Bitmap (base64 / `data:` URL) — e.g. the avatar. Wins over `sfSymbol`. */
+  image?: string;
+  sfSymbol?: string;
+  /** Trailing badge text (e.g. a count). */
+  badge?: string;
+  /** Render in the destructive (red) style. */
+  destructive?: boolean;
+  /** A non-tappable identity header row (avatar + name + email). */
+  header?: boolean;
+}
+
+export interface PresentSheetOptions {
+  /** Stable id reported in `sheetRow` / `sheetDismissed` events. */
+  id: string;
+  /** Hex accent `#RRGGBB[AA]` for badges. */
+  tint?: string;
+  rows: SheetRow[];
+}
+
+export interface SheetRowEvent {
+  sheetId: string;
+  rowId: string;
+}
+
+export interface SheetDismissedEvent {
+  sheetId: string;
+}
+
+/**
+ * Presents a native Liquid Glass bottom sheet (iOS) — real detents, grabber,
+ * drag-to-dismiss — whose rows are rendered natively from `rows`. Rejects on
+ * macOS/Windows/Linux (use an HTML sheet there). Row taps arrive through
+ * {@link onSheetRow}; user dismissal through {@link onSheetDismissed}.
+ */
+export async function presentSheet(options: PresentSheetOptions): Promise<void> {
+  await invoke('plugin:system-components|present_sheet', { options });
+}
+
+/** Dismisses a sheet by id. iOS. */
+export async function dismissSheet(id: string): Promise<void> {
+  await invoke('plugin:system-components|dismiss_sheet', { options: { id } });
+}
+
+/** Listens for taps on a native sheet's rows. */
+export async function onSheetRow(
+  handler: (event: SheetRowEvent) => void,
+): Promise<TabSelectedListener> {
+  const unlistenEvent = await listen<SheetRowEvent>(
+    'system-components://sheet-row',
+    (event) => handler(event.payload),
+  );
+  const pluginListener = await addPluginListener<SheetRowEvent>(
+    'system-components',
+    'sheetRow',
+    handler,
+  ).catch(() => null);
+  return {
+    async unregister() {
+      unlistenEvent();
+      await pluginListener?.unregister();
+    },
+  };
+}
+
+/** Listens for user dismissal (swipe / tap-away) of a native sheet. */
+export async function onSheetDismissed(
+  handler: (event: SheetDismissedEvent) => void,
+): Promise<TabSelectedListener> {
+  const unlistenEvent = await listen<SheetDismissedEvent>(
+    'system-components://sheet-dismissed',
+    (event) => handler(event.payload),
+  );
+  const pluginListener = await addPluginListener<SheetDismissedEvent>(
+    'system-components',
+    'sheetDismissed',
     handler,
   ).catch(() => null);
   return {

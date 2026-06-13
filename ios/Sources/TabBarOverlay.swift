@@ -16,11 +16,18 @@ import UIKit
 /// land on the bar itself — everything else falls through to the webview.
 final class PassthroughView: UIView {
     weak var interactiveView: UIView?
+    /// The standalone account button beside the bar, if any — also interactive.
+    weak var accessory: UIView?
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard let hit = super.hitTest(point, with: event) else { return nil }
-        guard let bar = interactiveView, !bar.isHidden else { return nil }
-        return hit === bar || hit.isDescendant(of: bar) ? hit : nil
+        if let bar = interactiveView, !bar.isHidden, hit === bar || hit.isDescendant(of: bar) {
+            return hit
+        }
+        if let acc = accessory, !acc.isHidden, hit === acc || hit.isDescendant(of: acc) {
+            return hit
+        }
+        return nil
     }
 }
 
@@ -28,6 +35,17 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     let tabBar = UITabBar()
     private(set) var ids: [String] = []
     var onSelect: ((String) -> Void)?
+
+    /// The bar's trailing edge — pinned to the screen edge normally, or to the
+    /// account button's leading edge when an accessory is mounted (so the bar
+    /// shrinks to leave room beside it, à la Apple Music's search button).
+    private var trailingFull: NSLayoutConstraint!
+    private var trailingToAccessory: NSLayoutConstraint?
+    private var accessoryButton: UIButton?
+    private(set) var accessoryId: String?
+
+    /// Side of the accessory button, in points.
+    private static let accessorySide: CGFloat = 50
 
     override func loadView() {
         let passthrough = PassthroughView()
@@ -41,13 +59,100 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         tabBar.delegate = self
         tabBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tabBar)
+        trailingFull = tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         NSLayoutConstraint.activate([
             tabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            trailingFull,
             // UITabBar self-extends its background under the home indicator
             // when pinned to the physical bottom edge.
             tabBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+    }
+
+    /// Tints the selected item via the bar's appearance (preserving the iOS 26
+    /// glass background) — plain `tintColor` is ignored by the glass selection
+    /// pill, so the accent has to ride on the appearance's selected colors.
+    func applyTint(_ color: UIColor?) {
+        tabBar.tintColor = color
+        guard let color else { return }
+        let appearance = tabBar.standardAppearance
+        for items in [
+            appearance.stackedLayoutAppearance,
+            appearance.inlineLayoutAppearance,
+            appearance.compactInlineLayoutAppearance,
+        ] {
+            items.selected.iconColor = color
+            items.selected.titleTextAttributes = [.foregroundColor: color]
+        }
+        tabBar.standardAppearance = appearance
+        if #available(iOS 15.0, *) {
+            tabBar.scrollEdgeAppearance = appearance
+        }
+    }
+
+    /// Mounts (or, with `id == nil`, removes) the circular account button beside
+    /// the bar. The avatar fills the circle; with no image, an SF Symbol over a
+    /// glass disc. Taps report through `onSelect(id)` — the same channel as
+    /// tabs — so the web app opens its account menu.
+    func setAccessory(id: String?, image: UIImage?, sfSymbol: String?) {
+        trailingToAccessory?.isActive = false
+        trailingToAccessory = nil
+        accessoryButton?.removeFromSuperview()
+        accessoryButton = nil
+        (view as? PassthroughView)?.accessory = nil
+        accessoryId = id
+        trailingFull.isActive = true
+        guard let id else { return }
+
+        let side = Self.accessorySide
+        let button = UIButton(type: .custom)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.clipsToBounds = true
+        button.layer.cornerRadius = side / 2
+        if let image {
+            button.setImage(image, for: .normal)
+            button.imageView?.contentMode = .scaleAspectFill
+            button.contentHorizontalAlignment = .fill
+            button.contentVerticalAlignment = .fill
+        } else {
+            let effect: UIVisualEffect = {
+                if #available(iOS 26.0, *) { return UIGlassEffect() }
+                return UIBlurEffect(style: .systemMaterial)
+            }()
+            let disc = UIVisualEffectView(effect: effect)
+            disc.isUserInteractionEnabled = false
+            disc.translatesAutoresizingMaskIntoConstraints = false
+            button.insertSubview(disc, at: 0)
+            NSLayoutConstraint.activate([
+                disc.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+                disc.trailingAnchor.constraint(equalTo: button.trailingAnchor),
+                disc.topAnchor.constraint(equalTo: button.topAnchor),
+                disc.bottomAnchor.constraint(equalTo: button.bottomAnchor),
+            ])
+            let conf = UIImage.SymbolConfiguration(pointSize: side * 0.46, weight: .regular)
+            button.setImage(
+                UIImage(systemName: sfSymbol ?? "person.crop.circle.fill", withConfiguration: conf),
+                for: .normal)
+            button.tintColor = .label
+        }
+        button.addAction(UIAction { [weak self] _ in self?.onSelect?(id) }, for: .touchUpInside)
+        view.addSubview(button)
+        let guide = view.safeAreaLayoutGuide
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: side),
+            button.heightAnchor.constraint(equalToConstant: side),
+            button.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -12),
+            // Vertically centered on the bar's icon row (~49pt of content sitting
+            // just above the bottom safe-area inset).
+            button.centerYAnchor.constraint(equalTo: guide.bottomAnchor, constant: -24.5),
+        ])
+        // Shrink the bar so the button sits beside it, not over it.
+        trailingFull.isActive = false
+        let shrink = tabBar.trailingAnchor.constraint(equalTo: button.leadingAnchor, constant: -10)
+        shrink.isActive = true
+        trailingToAccessory = shrink
+        accessoryButton = button
+        (view as? PassthroughView)?.accessory = button
     }
 
     /// Side of bitmap tab icons (avatars), in points.

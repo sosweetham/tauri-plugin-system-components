@@ -24,6 +24,19 @@ pub struct TabItem {
     pub badge: Option<String>,
 }
 
+/// A standalone account button floated beside the bar (Apple Music
+/// search-button style). `image` (base64 / data URL) wins over `sf_symbol`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccessoryItem {
+    /// Stable id reported back in `tabSelected` events when tapped.
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sf_symbol: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigureTabBarOptions {
@@ -35,11 +48,56 @@ pub struct ConfigureTabBarOptions {
     /// capsule tint + selected segment color on macOS.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tint: Option<String>,
+    /// Optional circular account button beside the bar (iOS). Ignored on macOS,
+    /// where the account button is an overlay component instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accessory: Option<AccessoryItem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectTabOptions {
+    pub id: String,
+}
+
+/// One row in a native sheet (iOS). Rendered natively; tapping reports the
+/// `id` back through the `sheetRow` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SheetRow {
+    pub id: String,
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+    /// Bitmap (base64 / data URL) — wins over `sf_symbol`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sf_symbol: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub badge: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destructive: Option<bool>,
+    /// A non-tappable identity header row (avatar + name + email).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub header: Option<bool>,
+}
+
+/// Present a native Liquid Glass bottom sheet (iOS) with natively-rendered rows.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PresentSheetOptions {
+    /// Stable id reported in `sheetRow` / `sheetDismissed` events.
+    pub id: String,
+    /// Hex accent `#RRGGBB[AA]` for badges / selection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tint: Option<String>,
+    pub rows: Vec<SheetRow>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DismissSheetOptions {
     pub id: String,
 }
 

@@ -56,6 +56,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::select_tab,
             commands::set_badge,
             commands::get_tab_bar_insets,
+            commands::present_sheet,
+            commands::dismiss_sheet,
             commands::create_component,
             commands::update_component,
             commands::update_components,
