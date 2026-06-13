@@ -1,6 +1,6 @@
 //
 //  TabBarOverlay.swift
-//  tauri-plugin-liquid-glass
+//  tauri-plugin-system-components
 //
 //  A UITabBar floated over the Tauri WKWebView as a child view controller of
 //  the host VC. The bar is the official Apple component: when the app is

@@ -1,6 +1,6 @@
 //
 //  ImageUtil.swift
-//  tauri-plugin-liquid-glass
+//  tauri-plugin-system-components
 //
 //  base64 → UIImage decoding plus the avatar-style transforms used by tab
 //  items and image components.

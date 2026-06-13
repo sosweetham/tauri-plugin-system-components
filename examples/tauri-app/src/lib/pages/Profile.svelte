@@ -11,7 +11,7 @@
   <p class="muted">
     Swift: <code>UITabBarDelegate.didSelect</code> →
     <code>trigger("tabSelected")</code> → JS
-    <code>addPluginListener('liquid-glass', 'tabSelected', …)</code> → Svelte
+    <code>addPluginListener('system-components', 'tabSelected', …)</code> → Svelte
     state.
   </p>
 </div>

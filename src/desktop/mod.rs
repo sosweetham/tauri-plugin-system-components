@@ -18,15 +18,15 @@ use crate::Error;
 pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     _api: PluginApi<R, C>,
-) -> crate::Result<LiquidGlass<R>> {
-    Ok(LiquidGlass {
+) -> crate::Result<SystemComponents<R>> {
+    Ok(SystemComponents {
         app: app.clone(),
         tab_ids: Arc::new(Mutex::new(Vec::new())),
     })
 }
 
-/// Access to the liquid-glass APIs on desktop.
-pub struct LiquidGlass<R: Runtime> {
+/// Access to the system-components APIs on desktop.
+pub struct SystemComponents<R: Runtime> {
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     app: AppHandle<R>,
     /// Tab ids by segment index — shared with the AppKit action callback.
@@ -48,7 +48,7 @@ macro_rules! macos_only {
     }};
 }
 
-impl<R: Runtime> LiquidGlass<R> {
+impl<R: Runtime> SystemComponents<R> {
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     fn window(&self) -> crate::Result<WebviewWindow<R>> {
         self.app

@@ -8,7 +8,7 @@ use crate::models::*;
 use crate::Error;
 
 #[cfg(target_os = "ios")]
-tauri::ios_plugin_binding!(init_plugin_liquid_glass);
+tauri::ios_plugin_binding!(init_plugin_system_components);
 
 /// Initializes the Swift plugin class registered by the host app.
 ///
@@ -18,22 +18,22 @@ tauri::ios_plugin_binding!(init_plugin_liquid_glass);
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     #[allow(unused_variables)] api: PluginApi<R, C>,
-) -> crate::Result<LiquidGlass<R>> {
+) -> crate::Result<SystemComponents<R>> {
     #[cfg(target_os = "ios")]
     {
-        let handle = api.register_ios_plugin(init_plugin_liquid_glass)?;
-        Ok(LiquidGlass { handle })
+        let handle = api.register_ios_plugin(init_plugin_system_components)?;
+        Ok(SystemComponents { handle })
     }
     #[cfg(not(target_os = "ios"))]
     {
-        Ok(LiquidGlass {
+        Ok(SystemComponents {
             _marker: std::marker::PhantomData,
         })
     }
 }
 
-/// Access to the liquid-glass APIs on mobile.
-pub struct LiquidGlass<R: Runtime> {
+/// Access to the system-components APIs on mobile.
+pub struct SystemComponents<R: Runtime> {
     #[cfg(target_os = "ios")]
     handle: PluginHandle<R>,
     #[cfg(not(target_os = "ios"))]
@@ -59,7 +59,7 @@ macro_rules! ios_command {
     }};
 }
 
-impl<R: Runtime> LiquidGlass<R> {
+impl<R: Runtime> SystemComponents<R> {
     pub fn configure_tab_bar(&self, options: ConfigureTabBarOptions) -> crate::Result<()> {
         ios_command!(self, "configureTabBar", options)
     }

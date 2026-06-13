@@ -3120,7 +3120,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-plugin-liquid-glass"
+name = "tauri-plugin-system-components"
 version = "0.1.0"
 dependencies = [
  "objc2",

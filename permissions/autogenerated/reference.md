@@ -1,6 +1,6 @@
 ## Default Permission
 
-Default permissions for the liquid-glass plugin.
+Default permissions for the system-components plugin.
 
 #### Granted Permissions
 
@@ -45,7 +45,7 @@ Default permissions for the liquid-glass plugin.
 <tr>
 <td>
 
-`liquid-glass:allow-clear-window-glass`
+`system-components:allow-clear-window-glass`
 
 </td>
 <td>
@@ -58,7 +58,7 @@ Enables the clear_window_glass command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-clear-window-glass`
+`system-components:deny-clear-window-glass`
 
 </td>
 <td>
@@ -71,7 +71,7 @@ Denies the clear_window_glass command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-configure-tab-bar`
+`system-components:allow-configure-tab-bar`
 
 </td>
 <td>
@@ -84,7 +84,7 @@ Enables the configure_tab_bar command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-configure-tab-bar`
+`system-components:deny-configure-tab-bar`
 
 </td>
 <td>
@@ -97,7 +97,7 @@ Denies the configure_tab_bar command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-create-component`
+`system-components:allow-create-component`
 
 </td>
 <td>
@@ -110,7 +110,7 @@ Enables the create_component command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-create-component`
+`system-components:deny-create-component`
 
 </td>
 <td>
@@ -123,7 +123,7 @@ Denies the create_component command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-get-tab-bar-insets`
+`system-components:allow-get-tab-bar-insets`
 
 </td>
 <td>
@@ -136,7 +136,7 @@ Enables the get_tab_bar_insets command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-get-tab-bar-insets`
+`system-components:deny-get-tab-bar-insets`
 
 </td>
 <td>
@@ -149,7 +149,7 @@ Denies the get_tab_bar_insets command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-hide-tab-bar`
+`system-components:allow-hide-tab-bar`
 
 </td>
 <td>
@@ -162,7 +162,7 @@ Enables the hide_tab_bar command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-hide-tab-bar`
+`system-components:deny-hide-tab-bar`
 
 </td>
 <td>
@@ -175,7 +175,7 @@ Denies the hide_tab_bar command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-is-glass-supported`
+`system-components:allow-is-glass-supported`
 
 </td>
 <td>
@@ -188,7 +188,7 @@ Enables the is_glass_supported command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-is-glass-supported`
+`system-components:deny-is-glass-supported`
 
 </td>
 <td>
@@ -201,7 +201,7 @@ Denies the is_glass_supported command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-register-listener`
+`system-components:allow-register-listener`
 
 </td>
 <td>
@@ -214,7 +214,7 @@ Enables the register_listener command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-register-listener`
+`system-components:deny-register-listener`
 
 </td>
 <td>
@@ -227,7 +227,7 @@ Denies the register_listener command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-remove-component`
+`system-components:allow-remove-component`
 
 </td>
 <td>
@@ -240,7 +240,7 @@ Enables the remove_component command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-remove-component`
+`system-components:deny-remove-component`
 
 </td>
 <td>
@@ -253,7 +253,7 @@ Denies the remove_component command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-remove-listener`
+`system-components:allow-remove-listener`
 
 </td>
 <td>
@@ -266,7 +266,7 @@ Enables the remove_listener command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-remove-listener`
+`system-components:deny-remove-listener`
 
 </td>
 <td>
@@ -279,7 +279,7 @@ Denies the remove_listener command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-remove-tab-bar`
+`system-components:allow-remove-tab-bar`
 
 </td>
 <td>
@@ -292,7 +292,7 @@ Enables the remove_tab_bar command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-remove-tab-bar`
+`system-components:deny-remove-tab-bar`
 
 </td>
 <td>
@@ -305,7 +305,7 @@ Denies the remove_tab_bar command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-select-tab`
+`system-components:allow-select-tab`
 
 </td>
 <td>
@@ -318,7 +318,7 @@ Enables the select_tab command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-select-tab`
+`system-components:deny-select-tab`
 
 </td>
 <td>
@@ -331,7 +331,7 @@ Denies the select_tab command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-set-badge`
+`system-components:allow-set-badge`
 
 </td>
 <td>
@@ -344,7 +344,7 @@ Enables the set_badge command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-set-badge`
+`system-components:deny-set-badge`
 
 </td>
 <td>
@@ -357,7 +357,7 @@ Denies the set_badge command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-set-window-glass`
+`system-components:allow-set-window-glass`
 
 </td>
 <td>
@@ -370,7 +370,7 @@ Enables the set_window_glass command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-set-window-glass`
+`system-components:deny-set-window-glass`
 
 </td>
 <td>
@@ -383,7 +383,7 @@ Denies the set_window_glass command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-show-tab-bar`
+`system-components:allow-show-tab-bar`
 
 </td>
 <td>
@@ -396,7 +396,7 @@ Enables the show_tab_bar command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-show-tab-bar`
+`system-components:deny-show-tab-bar`
 
 </td>
 <td>
@@ -409,7 +409,7 @@ Denies the show_tab_bar command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-update-component`
+`system-components:allow-update-component`
 
 </td>
 <td>
@@ -422,7 +422,7 @@ Enables the update_component command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-update-component`
+`system-components:deny-update-component`
 
 </td>
 <td>
@@ -435,7 +435,7 @@ Denies the update_component command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:allow-update-components`
+`system-components:allow-update-components`
 
 </td>
 <td>
@@ -448,7 +448,7 @@ Enables the update_components command without any pre-configured scope.
 <tr>
 <td>
 
-`liquid-glass:deny-update-components`
+`system-components:deny-update-components`
 
 </td>
 <td>

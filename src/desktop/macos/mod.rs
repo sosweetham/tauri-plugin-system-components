@@ -26,7 +26,7 @@ use crate::models::GlassSupport;
 use crate::Error;
 
 /// Identifier prefix for every view this plugin installs.
-pub const ID_PREFIX: &str = "tauri-plugin-liquid-glass.";
+pub const ID_PREFIX: &str = "tauri-plugin-system-components.";
 
 pub fn glass_class() -> Option<&'static AnyClass> {
     // Dynamic lookup: NSGlassEffectView only exists in the macOS 26 SDK /
@@ -206,7 +206,7 @@ define_class!(
     // SAFETY: NSObject has no subclassing requirements; the class is only
     // used as an NSControl target on the main thread.
     #[unsafe(super(NSObject))]
-    #[name = "TauriLiquidGlassActionTarget"]
+    #[name = "TauriSystemComponentsActionTarget"]
     #[ivars = ActionTargetIvars]
     pub struct ActionTarget;
 

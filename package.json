@@ -1,7 +1,7 @@
 {
-  "name": "tauri-plugin-liquid-glass-api",
+  "name": "tauri-plugin-system-components-api",
   "version": "0.1.0",
-  "description": "Apple Liquid Glass components for Tauri 2 — native iOS tab bar over the webview, macOS glass window background.",
+  "description": "Native system UI components for Tauri 2 — native iOS tab bar over the webview, native controls, and glass window backgrounds on macOS/iOS.",
   "license": "MIT",
   "author": "SoSweetHam <sosweetham@gmail.com>",
   "type": "module",
@@ -21,7 +21,7 @@
   "keywords": [
     "tauri",
     "tauri-plugin",
-    "liquid-glass",
+    "system-components",
     "tab-bar",
     "ios",
     "macos"

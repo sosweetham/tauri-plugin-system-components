@@ -168,22 +168,22 @@ export interface TabSelectedListener {
 export async function configureTabBar(
   options: ConfigureTabBarOptions,
 ): Promise<void> {
-  await invoke('plugin:liquid-glass|configure_tab_bar', { options });
+  await invoke('plugin:system-components|configure_tab_bar', { options });
 }
 
 /** Unmounts the native tab bar. iOS/macOS. */
 export async function removeTabBar(): Promise<void> {
-  await invoke('plugin:liquid-glass|remove_tab_bar');
+  await invoke('plugin:system-components|remove_tab_bar');
 }
 
 /** Shows a previously hidden tab bar. iOS/macOS. */
 export async function showTabBar(): Promise<void> {
-  await invoke('plugin:liquid-glass|show_tab_bar');
+  await invoke('plugin:system-components|show_tab_bar');
 }
 
 /** Hides the tab bar without unmounting it. iOS/macOS. */
 export async function hideTabBar(): Promise<void> {
-  await invoke('plugin:liquid-glass|hide_tab_bar');
+  await invoke('plugin:system-components|hide_tab_bar');
 }
 
 /**
@@ -191,7 +191,7 @@ export async function hideTabBar(): Promise<void> {
  * (matching AppKit/UIKit, which only report user interaction). iOS/macOS.
  */
 export async function selectTab(id: string): Promise<void> {
-  await invoke('plugin:liquid-glass|select_tab', { options: { id } });
+  await invoke('plugin:system-components|select_tab', { options: { id } });
 }
 
 /**
@@ -199,7 +199,7 @@ export async function selectTab(id: string): Promise<void> {
  * NSSegmentedControl has no badge concept, so this rejects on macOS.
  */
 export async function setBadge(id: string, value?: string): Promise<void> {
-  await invoke('plugin:liquid-glass|set_badge', { options: { id, value } });
+  await invoke('plugin:system-components|set_badge', { options: { id, value } });
 }
 
 /**
@@ -208,7 +208,7 @@ export async function setBadge(id: string, value?: string): Promise<void> {
  * floating bar. iOS/macOS.
  */
 export async function getTabBarInsets(): Promise<TabBarInsets> {
-  return await invoke('plugin:liquid-glass|get_tab_bar_insets');
+  return await invoke('plugin:system-components|get_tab_bar_insets');
 }
 
 /**
@@ -216,19 +216,19 @@ export async function getTabBarInsets(): Promise<TabBarInsets> {
  * from this. iOS/macOS (never fires elsewhere).
  *
  * Internally this subscribes to both transports — the mobile plugin event
- * channel (iOS) and the `liquid-glass://tab-selected` Tauri event (macOS);
+ * channel (iOS) and the `system-components://tab-selected` Tauri event (macOS);
  * only the platform-active one ever fires.
  */
 export async function onTabSelected(
   handler: (event: TabSelectedEvent) => void,
 ): Promise<TabSelectedListener> {
   const unlistenEvent = await listen<TabSelectedEvent>(
-    'liquid-glass://tab-selected',
+    'system-components://tab-selected',
     (event) => handler(event.payload),
   );
   // register_listener only exists on the mobile plugin; rejects on desktop.
   const pluginListener = await addPluginListener<TabSelectedEvent>(
-    'liquid-glass',
+    'system-components',
     'tabSelected',
     handler,
   ).catch(() => null);
@@ -252,7 +252,7 @@ export async function onTabSelected(
 export async function createComponent(
   options: CreateComponentOptions,
 ): Promise<void> {
-  await invoke('plugin:liquid-glass|create_component', { options });
+  await invoke('plugin:system-components|create_component', { options });
 }
 
 /** Updates a component's props (state, value, label, image). iOS/macOS. */
@@ -260,7 +260,7 @@ export async function updateComponent(
   id: string,
   props: ComponentProps,
 ): Promise<void> {
-  await invoke('plugin:liquid-glass|update_component', {
+  await invoke('plugin:system-components|update_component', {
     options: { id, props },
   });
 }
@@ -273,14 +273,14 @@ export async function updateComponent(
 export async function updateComponents(
   components: Array<{ id: string; props: ComponentProps }>,
 ): Promise<void> {
-  await invoke('plugin:liquid-glass|update_components', {
+  await invoke('plugin:system-components|update_components', {
     options: { components },
   });
 }
 
 /** Removes a component created with {@link createComponent}. iOS/macOS. */
 export async function removeComponent(id: string): Promise<void> {
-  await invoke('plugin:liquid-glass|remove_component', { options: { id } });
+  await invoke('plugin:system-components|remove_component', { options: { id } });
 }
 
 /**
@@ -292,11 +292,11 @@ export async function onComponentEvent(
   handler: (event: ComponentEvent) => void,
 ): Promise<TabSelectedListener> {
   const unlistenEvent = await listen<ComponentEvent>(
-    'liquid-glass://component-event',
+    'system-components://component-event',
     (event) => handler(event.payload),
   );
   const pluginListener = await addPluginListener<ComponentEvent>(
-    'liquid-glass',
+    'system-components',
     'componentEvent',
     handler,
   ).catch(() => null);
@@ -314,7 +314,7 @@ export async function onComponentEvent(
  * `{ supported: false, fallback: false }` on iOS/Windows/Linux.
  */
 export async function isGlassSupported(): Promise<GlassSupport> {
-  return await invoke('plugin:liquid-glass|is_glass_supported');
+  return await invoke('plugin:system-components|is_glass_supported');
 }
 
 /**
@@ -329,10 +329,10 @@ export async function isGlassSupported(): Promise<GlassSupport> {
 export async function setWindowGlass(
   options?: WindowGlassOptions,
 ): Promise<void> {
-  await invoke('plugin:liquid-glass|set_window_glass', { options });
+  await invoke('plugin:system-components|set_window_glass', { options });
 }
 
 /** Removes the glass view installed by {@link setWindowGlass}. macOS only. */
 export async function clearWindowGlass(): Promise<void> {
-  await invoke('plugin:liquid-glass|clear_window_glass');
+  await invoke('plugin:system-components|clear_window_glass');
 }

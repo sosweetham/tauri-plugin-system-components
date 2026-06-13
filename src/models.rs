@@ -70,7 +70,7 @@ pub struct WindowGlassOptions {
     pub tint_color: Option<String>,
 }
 
-/// Payload of the `liquid-glass://tab-selected` event emitted on macOS
+/// Payload of the `system-components://tab-selected` event emitted on macOS
 /// (iOS delivers the same shape through the plugin event channel).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -195,7 +195,7 @@ pub struct RemoveComponentOptions {
     pub id: String,
 }
 
-/// Payload of the `liquid-glass://component-event` event on macOS (iOS
+/// Payload of the `system-components://component-event` event on macOS (iOS
 /// delivers the same shape through the plugin event channel).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

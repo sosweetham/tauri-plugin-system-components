@@ -21,7 +21,7 @@ use crate::Error;
 
 /// Event listened to by the JS `onTabSelected` helper (the desktop
 /// counterpart of the iOS plugin-event channel).
-const TAB_SELECTED_EVENT: &str = "liquid-glass://tab-selected";
+const TAB_SELECTED_EVENT: &str = "system-components://tab-selected";
 
 /// Gap between the floating capsule and the window's bottom edge.
 const BAR_BOTTOM_MARGIN: f64 = 20.0;

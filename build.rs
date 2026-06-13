@@ -14,7 +14,7 @@ const COMMANDS: &[&str] = &[
     "set_window_glass",
     "clear_window_glass",
     // Required for addPluginListener() — the JS side invokes
-    // plugin:liquid-glass|register_listener to receive `trigger`ed events,
+    // plugin:system-components|register_listener to receive `trigger`ed events,
     // and remove_listener when the returned PluginListener unregisters.
     "register_listener",
     "remove_listener",

@@ -1,6 +1,6 @@
 //
 //  ComponentsOverlay.swift
-//  tauri-plugin-liquid-glass
+//  tauri-plugin-system-components
 //
 //  Generic native overlay components (switch, button, slider, progress,
 //  image) floated over the webview, optionally inside a glass capsule.
