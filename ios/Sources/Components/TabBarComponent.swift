@@ -13,6 +13,22 @@ final class ComponentTabBar: UITabBar, UITabBarDelegate {
 
     /// Side of bitmap tab icons (avatars), in points.
     private static let imageSide: CGFloat = 26
+    /// Approximate width of one tab slot (icon + label), in points — used only
+    /// to derive an intrinsic width (see below).
+    private static let itemWidth: CGFloat = 76
+
+    /// A standalone `UITabBar` reports *no intrinsic width* — it expects a
+    /// `UITabBarController` to size it — so dropped into a self-sizing container
+    /// (a `UIStackView`) it collapses to nothing, which is the squish. Derive a
+    /// width from the item count so the bar sizes itself to a proper pill in
+    /// *any* container; the stack then lays it out and aligns siblings (the
+    /// account button) on its own, with no caller-supplied dimensions.
+    override var intrinsicContentSize: CGSize {
+        guard let count = items?.count, count > 0 else { return super.intrinsicContentSize }
+        let width = CGFloat(count) * Self.itemWidth
+        let fitted = sizeThatFits(CGSize(width: width, height: 0)).height
+        return CGSize(width: width, height: fitted > 0 ? fitted : super.intrinsicContentSize.height)
+    }
 
     func configure(
         items: [TabItemArgs], selectedId: String?, tint: UIColor?,
@@ -33,6 +49,12 @@ final class ComponentTabBar: UITabBar, UITabBarDelegate {
             return barItem
         }
         setItems(barItems, animated: false)
+        // Item count drives the derived intrinsic width — recompute it. Hug
+        // loosely so the bar fills a wider container while a fixed-size sibling
+        // (the account button) keeps its size; the intrinsic width is just the
+        // floor for when the container instead sizes itself to content.
+        invalidateIntrinsicContentSize()
+        setContentHuggingPriority(.defaultLow, for: .horizontal)
         if let selectedId, let idx = ids.firstIndex(of: selectedId), idx < barItems.count {
             selectedItem = barItems[idx]
         } else {

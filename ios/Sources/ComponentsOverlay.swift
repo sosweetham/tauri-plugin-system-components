@@ -188,26 +188,34 @@ final class ComponentsOverlayController: UIViewController {
                 container.centerXAnchor.constraint(equalTo: guide.centerXAnchor, constant: dx),
                 container.centerYAnchor.constraint(equalTo: guide.centerYAnchor, constant: dy),
             ]
-        // Edge-centered: for docking a nav container against one safe-area edge.
+        // Edge-docked: span the cross-axis so a bottom/top bar fills the width
+        // (and a side rail fills the height), letting its children lay out
+        // across the edge instead of floating a content-sized blob at the
+        // center. `inset` (margin) is the gap from the docked edge and the
+        // side insets along it.
         case "bottom":
             constraints = [
-                container.centerXAnchor.constraint(equalTo: guide.centerXAnchor, constant: dx),
+                container.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: margin),
+                container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -margin),
                 container.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -(margin + dy)),
             ]
         case "top":
             constraints = [
-                container.centerXAnchor.constraint(equalTo: guide.centerXAnchor, constant: dx),
+                container.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: margin),
+                container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -margin),
                 container.topAnchor.constraint(equalTo: guide.topAnchor, constant: margin + dy),
             ]
         case "leading":
             constraints = [
+                container.topAnchor.constraint(equalTo: guide.topAnchor, constant: margin),
+                container.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -margin),
                 container.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: margin + dx),
-                container.centerYAnchor.constraint(equalTo: guide.centerYAnchor, constant: dy),
             ]
         case "trailing":
             constraints = [
+                container.topAnchor.constraint(equalTo: guide.topAnchor, constant: margin),
+                container.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -margin),
                 container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -(margin + dx)),
-                container.centerYAnchor.constraint(equalTo: guide.centerYAnchor, constant: dy),
             ]
         default:  // topTrailing
             constraints = [
