@@ -3,7 +3,7 @@
 </script>
 
 <div class="hero">
-  <h1>Liquid Glass Demo</h1>
+  <h1>System Components Demo</h1>
   <p>
     {#if nativeBar && glass}
       The capsule below is a native <code>NSSegmentedControl</code> floating

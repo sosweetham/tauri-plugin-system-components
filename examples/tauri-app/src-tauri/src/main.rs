@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tauri_plugin_liquid_glass_demo_lib::run();
+    tauri_plugin_system_components_demo_lib::run();
 }

@@ -1,10 +1,10 @@
 //
-//  LiquidGlassPlugin.swift
-//  tauri-plugin-liquid-glass
+//  SystemComponentsPlugin.swift
+//  tauri-plugin-system-components
 //
 //  Mounts a native UITabBar (Liquid Glass on iOS 26) over the Tauri webview
 //  and forwards tab selection to JS via the plugin event channel
-//  (`addPluginListener('liquid-glass', 'tabSelected', …)`).
+//  (`addPluginListener('system-components', 'tabSelected', …)`).
 //
 //  Commands arrive on Tauri's ipc queue; all UIKit work hops to the main
 //  queue (same pattern as the official plugins).
@@ -76,7 +76,7 @@ class DismissSheetArgs: Decodable {
     let id: String
 }
 
-class LiquidGlassPlugin: Plugin {
+class SystemComponentsPlugin: Plugin {
     private var overlay: TabBarOverlayController?
     private var componentsOverlay: ComponentsOverlayController?
     private var webView: WKWebView?
@@ -333,7 +333,7 @@ class LiquidGlassPlugin: Plugin {
     }
 }
 
-@_cdecl("init_plugin_liquid_glass")
+@_cdecl("init_plugin_system_components")
 func initPlugin() -> Plugin {
-    return LiquidGlassPlugin()
+    return SystemComponentsPlugin()
 }

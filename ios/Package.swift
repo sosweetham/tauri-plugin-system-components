@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "tauri-plugin-liquid-glass",
+    name: "tauri-plugin-system-components",
     platforms: [
         // The tab bar (and the rest of the plugin) works from iOS 14; the only
         // iOS-15 API — UIButton.Configuration in the components overlay — is
@@ -15,9 +15,9 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "tauri-plugin-liquid-glass",
+            name: "tauri-plugin-system-components",
             type: .static,
-            targets: ["tauri-plugin-liquid-glass"]),
+            targets: ["tauri-plugin-system-components"]),
     ],
     dependencies: [
         // Tauri runtime injected as a sibling local package by the Tauri CLI
@@ -26,7 +26,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "tauri-plugin-liquid-glass",
+            name: "tauri-plugin-system-components",
             dependencies: [
                 .byName(name: "Tauri"),
             ],

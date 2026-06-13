@@ -2,7 +2,7 @@
 
 [default]
 description = """
-Default permissions for the liquid-glass plugin.
+Default permissions for the system-components plugin.
 
 #### Granted Permissions
 

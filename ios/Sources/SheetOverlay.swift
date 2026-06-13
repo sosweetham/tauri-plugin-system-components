@@ -1,6 +1,6 @@
 //
 //  SheetOverlay.swift
-//  tauri-plugin-liquid-glass
+//  tauri-plugin-system-components
 //
 //  A native bottom sheet (UISheetPresentationController — real detents,
 //  grabber, drag-to-dismiss) whose rows are rendered natively from data the

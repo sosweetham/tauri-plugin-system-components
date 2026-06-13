@@ -1,6 +1,6 @@
 //! Generic native overlay components: switch, button, slider, progress and
 //! image views floated over the webview, optionally inside a glass capsule.
-//! Interactive controls report through the `liquid-glass://component-event`
+//! Interactive controls report through the `system-components://component-event`
 //! Tauri event (the desktop counterpart of the iOS plugin-event channel).
 
 use objc2::rc::Retained;
@@ -25,7 +25,7 @@ use crate::models::{
 };
 use crate::Error;
 
-const COMPONENT_EVENT: &str = "liquid-glass://component-event";
+const COMPONENT_EVENT: &str = "system-components://component-event";
 
 /// Margin between anchored components and the window edge / safe area.
 const EDGE_MARGIN: f64 = 16.0;

@@ -1,4 +1,4 @@
-//! Apple Liquid Glass components for Tauri 2.
+//! Native system UI components for Tauri 2.
 //!
 //! - **iOS**: a native `UITabBar` overlaid on the webview — it adopts Liquid
 //!   Glass automatically when the app is built with Xcode 26 against the
@@ -26,28 +26,28 @@ mod models;
 pub use error::{Error, Result};
 
 #[cfg(desktop)]
-use desktop::LiquidGlass;
+use desktop::SystemComponents;
 #[cfg(mobile)]
-use mobile::LiquidGlass;
+use mobile::SystemComponents;
 
-/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the liquid-glass APIs.
-pub trait LiquidGlassExt<R: Runtime> {
-    fn liquid_glass(&self) -> &LiquidGlass<R>;
+/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the system-components APIs.
+pub trait SystemComponentsExt<R: Runtime> {
+    fn system_components(&self) -> &SystemComponents<R>;
 }
 
-impl<R: Runtime, T: Manager<R>> crate::LiquidGlassExt<R> for T {
-    fn liquid_glass(&self) -> &LiquidGlass<R> {
-        self.state::<LiquidGlass<R>>().inner()
+impl<R: Runtime, T: Manager<R>> crate::SystemComponentsExt<R> for T {
+    fn system_components(&self) -> &SystemComponents<R> {
+        self.state::<SystemComponents<R>>().inner()
     }
 }
 
 /// Initializes the plugin. Call this from your Tauri app's `lib.rs`:
 ///
 /// ```ignore
-/// .plugin(tauri_plugin_liquid_glass::init())
+/// .plugin(tauri_plugin_system_components::init())
 /// ```
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("liquid-glass")
+    Builder::new("system-components")
         .invoke_handler(tauri::generate_handler![
             commands::configure_tab_bar,
             commands::remove_tab_bar,
@@ -68,10 +68,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         ])
         .setup(|app, api| {
             #[cfg(mobile)]
-            let liquid_glass = mobile::init(app, api)?;
+            let system_components = mobile::init(app, api)?;
             #[cfg(desktop)]
-            let liquid_glass = desktop::init(app, api)?;
-            app.manage(liquid_glass);
+            let system_components = desktop::init(app, api)?;
+            app.manage(system_components);
             Ok(())
         })
         .build()

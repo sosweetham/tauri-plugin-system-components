@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-plugin-liquid-glass-demo",
+  "productName": "tauri-plugin-system-components-demo",
   "version": "0.1.0",
-  "identifier": "app.tauri.liquidglassdemo",
+  "identifier": "app.tauri.systemcomponentsdemo",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
@@ -20,7 +20,7 @@
         "fullscreen": false,
         "height": 800,
         "resizable": true,
-        "title": "Liquid Glass Demo",
+        "title": "System Components Demo",
         "width": 480,
         "transparent": true
       }

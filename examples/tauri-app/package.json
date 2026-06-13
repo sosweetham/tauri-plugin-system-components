@@ -1,5 +1,5 @@
 {
-  "name": "tauri-plugin-liquid-glass-demo",
+  "name": "tauri-plugin-system-components-demo",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
-    "tauri-plugin-liquid-glass-api": "link:../.."
+    "tauri-plugin-system-components-api": "link:../.."
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",

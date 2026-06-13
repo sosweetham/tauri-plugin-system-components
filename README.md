@@ -1,6 +1,6 @@
-# tauri-plugin-liquid-glass
+# tauri-plugin-system-components
 
-Apple's official **Liquid Glass** components for [Tauri 2](https://tauri.app) apps:
+Native **system UI components** for [Tauri 2](https://tauri.app) apps — real UIKit/AppKit controls over the webview, including Apple's Liquid Glass material on iOS 26 / macOS 26:
 
 - **iOS — native bottom tab bar.** A real UIKit `UITabBar` floated over the
   webview. Built with Xcode 26 against the iOS 26 SDK, it adopts Liquid Glass
@@ -44,22 +44,22 @@ to an HTML UI (see the example app). Tab badges (`setBadge`) are iOS-only —
 ```toml
 # src-tauri/Cargo.toml
 [dependencies]
-tauri-plugin-liquid-glass = { path = "..." }
+tauri-plugin-system-components = { path = "..." }
 ```
 
 ```rust
 // src-tauri/src/lib.rs
 tauri::Builder::default()
-    .plugin(tauri_plugin_liquid_glass::init())
+    .plugin(tauri_plugin_system_components::init())
 ```
 
 ```json
 // src-tauri/capabilities/default.json
-{ "permissions": ["liquid-glass:default"] }
+{ "permissions": ["system-components:default"] }
 ```
 
 ```bash
-pnpm add tauri-plugin-liquid-glass-api
+pnpm add tauri-plugin-system-components-api
 ```
 
 ## Usage
@@ -71,7 +71,7 @@ import {
   getTabBarInsets,
   isGlassSupported,
   setWindowGlass,
-} from 'tauri-plugin-liquid-glass-api';
+} from 'tauri-plugin-system-components-api';
 
 try {
   // Native Liquid Glass tab bar (iOS UITabBar / macOS glass capsule).
@@ -99,7 +99,7 @@ Native overlay components:
 ```ts
 import {
   createComponent, updateComponent, removeComponent, onComponentEvent,
-} from 'tauri-plugin-liquid-glass-api';
+} from 'tauri-plugin-system-components-api';
 
 await createComponent({
   id: 'wifi', kind: 'switch', anchor: 'topTrailing',
@@ -125,7 +125,7 @@ Other commands: `removeTabBar`, `showTabBar`, `hideTabBar`,
 (iOS-only), `clearWindowGlass`.
 
 `onTabSelected` subscribes to both transports under the hood — the mobile
-plugin event channel on iOS and the `liquid-glass://tab-selected` Tauri event
+plugin event channel on iOS and the `system-components://tab-selected` Tauri event
 on macOS — so app code is identical everywhere.
 
 ## Requirements & caveats

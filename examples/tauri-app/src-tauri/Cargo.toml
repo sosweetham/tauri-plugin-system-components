@@ -1,14 +1,14 @@
 [package]
-name = "tauri-plugin-liquid-glass-demo"
+name = "tauri-plugin-system-components-demo"
 version = "0.1.0"
-description = "Standalone demo of tauri-plugin-liquid-glass."
+description = "Standalone demo of tauri-plugin-system-components."
 edition = "2021"
 rust-version = "1.77.2"
 license = "MIT"
 publish = false
 
 [lib]
-name = "tauri_plugin_liquid_glass_demo_lib"
+name = "tauri_plugin_system_components_demo_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -16,4 +16,4 @@ tauri-build = { version = "2.5", default-features = false, features = [] }
 
 [dependencies]
 tauri = { version = "2.10", features = ["macos-private-api"] }
-tauri-plugin-liquid-glass = { path = "../../../" }
+tauri-plugin-system-components = { path = "../../../" }
