@@ -7,7 +7,7 @@ description = "Native system UI components for Tauri 2 — native iOS tab bar ov
 edition = "2021"
 rust-version = "1.77.2"
 readme = "README.md"
-repository = "https://github.com/sosweetham/tauri-plugin-liquid-glass"
+repository = "https://github.com/sosweetham/tauri-plugin-system-components"
 # crates.io: max 5, only [a-z0-9-_], must start with a letter, ≤20 chars each.
 keywords = ["tauri", "tauri-plugin", "system-components", "ios", "macos"]
 categories = ["api-bindings", "gui"]
