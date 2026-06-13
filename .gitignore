@@ -6,3 +6,5 @@ dist-js/
 /ios/.tauri
 /ios/Package.resolved
 .DS_Store
+
+.turbo

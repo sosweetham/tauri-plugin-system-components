@@ -60,12 +60,24 @@ pub struct SelectTabOptions {
     pub id: String,
 }
 
-/// One row in a native sheet (iOS). Rendered natively; tapping reports the
-/// `id` back through the `sheetRow` event.
+/// An option for a `select` sheet row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SheetOption {
+    pub value: String,
+    pub label: String,
+}
+
+/// One row in a native sheet (iOS), rendered natively. Tappable rows report
+/// the `id` via `sheetRow`; form rows report via `sheetField` / `sheetSubmit`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SheetRow {
     pub id: String,
+    /// `header | action | text | textfield | toggle | datetime | select | submit`.
+    /// Defaults to `action` (or `header` when `header == true`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
@@ -78,9 +90,20 @@ pub struct SheetRow {
     pub badge: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destructive: Option<bool>,
-    /// A non-tappable identity header row (avatar + name + email).
+    /// Back-compat: same as `kind: "header"`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub header: Option<bool>,
+    /// Initial value: `textfield` text / `datetime` ISO-8601 / `select` value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    /// Initial `toggle` state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+    /// `select` options.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub options: Option<Vec<SheetOption>>,
 }
 
 /// Present a native Liquid Glass bottom sheet (iOS) with natively-rendered rows.

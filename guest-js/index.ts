@@ -257,10 +257,22 @@ export async function onTabSelected(
   };
 }
 
+/** An option for a `select` row. */
+export interface SheetSelectOption {
+  value: string;
+  label: string;
+}
+
 /** One natively-rendered row in a native sheet (iOS). */
 export interface SheetRow {
-  /** Stable id reported in `sheetRow` events when tapped. */
+  /** Stable id reported in events. */
   id: string;
+  /**
+   * `header` (identity), `action` (tappable → `sheetRow`), `text` (paragraph),
+   * `textfield`, `toggle`, `datetime`, `select`, `submit` (→ `sheetSubmit`).
+   * Defaults to `action`.
+   */
+  kind?: 'header' | 'action' | 'text' | 'textfield' | 'toggle' | 'datetime' | 'select' | 'submit';
   label: string;
   /** Secondary line. */
   detail?: string;
@@ -271,8 +283,15 @@ export interface SheetRow {
   badge?: string;
   /** Render in the destructive (red) style. */
   destructive?: boolean;
-  /** A non-tappable identity header row (avatar + name + email). */
+  /** Back-compat shorthand for `kind: 'header'`. */
   header?: boolean;
+  /** Initial value: `textfield` text / `datetime` ISO-8601 / `select` value. */
+  value?: string;
+  /** Initial `toggle` state. */
+  on?: boolean;
+  placeholder?: string;
+  /** `select` options. */
+  options?: SheetSelectOption[];
 }
 
 export interface PresentSheetOptions {
@@ -290,6 +309,22 @@ export interface SheetRowEvent {
 
 export interface SheetDismissedEvent {
   sheetId: string;
+}
+
+/** A form field's value changed. */
+export interface SheetFieldEvent {
+  sheetId: string;
+  rowId: string;
+  /** New value (toggle: `"true"`/`"false"`; datetime: ISO-8601; select: value). */
+  value: string;
+}
+
+/** A `submit` row was tapped, carrying all current field values. */
+export interface SheetSubmitEvent {
+  sheetId: string;
+  rowId: string;
+  /** JSON object string of `{ rowId: value }` for every form row. */
+  values: string;
 }
 
 /**
@@ -339,6 +374,48 @@ export async function onSheetDismissed(
   const pluginListener = await addPluginListener<SheetDismissedEvent>(
     'system-components',
     'sheetDismissed',
+    handler,
+  ).catch(() => null);
+  return {
+    async unregister() {
+      unlistenEvent();
+      await pluginListener?.unregister();
+    },
+  };
+}
+
+/** Listens for form-field value changes in a native sheet. */
+export async function onSheetField(
+  handler: (event: SheetFieldEvent) => void,
+): Promise<TabSelectedListener> {
+  const unlistenEvent = await listen<SheetFieldEvent>(
+    'system-components://sheet-field',
+    (event) => handler(event.payload),
+  );
+  const pluginListener = await addPluginListener<SheetFieldEvent>(
+    'system-components',
+    'sheetField',
+    handler,
+  ).catch(() => null);
+  return {
+    async unregister() {
+      unlistenEvent();
+      await pluginListener?.unregister();
+    },
+  };
+}
+
+/** Listens for a `submit` row tap (carries all field values as a JSON string). */
+export async function onSheetSubmit(
+  handler: (event: SheetSubmitEvent) => void,
+): Promise<TabSelectedListener> {
+  const unlistenEvent = await listen<SheetSubmitEvent>(
+    'system-components://sheet-submit',
+    (event) => handler(event.payload),
+  );
+  const pluginListener = await addPluginListener<SheetSubmitEvent>(
+    'system-components',
+    'sheetSubmit',
     handler,
   ).catch(() => null);
   return {

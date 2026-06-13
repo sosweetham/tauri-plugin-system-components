@@ -53,8 +53,16 @@ class SetBadgeArgs: Decodable {
     let value: String?
 }
 
+class SheetOptionArgs: Decodable {
+    let value: String
+    let label: String
+}
+
 class SheetRowArgs: Decodable {
     let id: String
+    /// header | action | text | textfield | toggle | datetime | select | submit.
+    /// Defaults to `action` (or `header` when `header == true`, for back-compat).
+    let kind: String?
     let label: String
     let detail: String?
     /// Bitmap (base64 / data URL) — e.g. the account avatar. Wins over `sfSymbol`.
@@ -62,8 +70,13 @@ class SheetRowArgs: Decodable {
     let sfSymbol: String?
     let badge: String?
     let destructive: Bool?
-    /// A non-tappable identity header row (avatar + name + email).
+    /// Back-compat: `header: true` is the same as `kind: "header"`.
     let header: Bool?
+    // Form fields:
+    let value: String?
+    let on: Bool?
+    let placeholder: String?
+    let options: [SheetOptionArgs]?
 }
 
 class PresentSheetArgs: Decodable {
@@ -226,20 +239,47 @@ class SystemComponentsPlugin: Plugin {
                 invoke.reject("host view controller unavailable")
                 return
             }
-            let sheet = SheetController()
-            sheet.tint = args.tint.flatMap(ColorUtil.from(hex:))
-            sheet.rows = args.rows.map { r in
+            let tintColor = args.tint.flatMap(ColorUtil.from(hex:))
+            let mappedRows: [SheetRow] = args.rows.map { r in
+                let kind: SheetRowKind =
+                    r.header == true
+                    ? .header : (r.kind.flatMap(SheetRowKind.init(rawValue:)) ?? .action)
                 let image = r.image.flatMap(ImageUtil.decode).map {
-                    ImageUtil.icon($0, side: r.header == true ? 40 : 24, circular: true)
+                    ImageUtil.icon($0, side: kind == .header ? 40 : 24, circular: true)
                 }
                 return SheetRow(
-                    id: r.id, label: r.label, detail: r.detail, image: image,
-                    sfSymbol: r.sfSymbol, badge: r.badge,
-                    destructive: r.destructive ?? false, isHeader: r.header ?? false)
+                    id: r.id, kind: kind, label: r.label, detail: r.detail, image: image,
+                    sfSymbol: r.sfSymbol, badge: r.badge, destructive: r.destructive ?? false,
+                    value: r.value, on: r.on ?? false, placeholder: r.placeholder,
+                    options: (r.options ?? []).map { SheetOption(value: $0.value, label: $0.label) })
             }
             let sheetId = args.id
+
+            // Already on screen with this id → swap content in place (no
+            // dismiss→present race/flicker) and we're done.
+            if let existing = self.sheets[sheetId], existing.presentingViewController != nil {
+                existing.update(rows: mappedRows, tint: tintColor)
+                invoke.resolve()
+                return
+            }
+
+            let sheet = SheetController()
+            sheet.tint = tintColor
+            sheet.rows = mappedRows
             sheet.onSelect = { [weak self] rowId in
                 self?.trigger("sheetRow", data: ["sheetId": sheetId, "rowId": rowId])
+            }
+            sheet.onField = { [weak self] rowId, value in
+                self?.trigger(
+                    "sheetField", data: ["sheetId": sheetId, "rowId": rowId, "value": value])
+            }
+            sheet.onSubmit = { [weak self] rowId, values in
+                let json =
+                    (try? JSONSerialization.data(withJSONObject: values)).flatMap {
+                        String(data: $0, encoding: .utf8)
+                    } ?? "{}"
+                self?.trigger(
+                    "sheetSubmit", data: ["sheetId": sheetId, "rowId": rowId, "values": json])
             }
             sheet.onDismissed = { [weak self] in
                 self?.trigger("sheetDismissed", data: ["sheetId": sheetId])
