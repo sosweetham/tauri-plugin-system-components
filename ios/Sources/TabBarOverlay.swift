@@ -8,23 +8,24 @@
 //  automatically and refracts the web content rendered behind it. On older
 //  SDKs/devices the same bar renders the classic translucent look.
 //
+//  The bar and the optional account button live in a horizontal UIStackView
+//  "container", so the stack owns their layout (spacing + vertical alignment)
+//  — no hand-tuned offsets. The container sits just above the bottom safe area
+//  (where the iOS 26 bar floats), which keeps the bar at its natural icon-row
+//  height so `.center` alignment seats the avatar right on the icons.
+//
 
 import UIKit
 
 /// Root view of the overlay controller: covers the whole host view so the
-/// tab bar can pin to the real screen bottom, but only claims touches that
-/// land on the bar itself — everything else falls through to the webview.
+/// nav container can pin near the screen bottom, but only claims touches that
+/// land on the container itself — everything else falls through to the webview.
 final class PassthroughView: UIView {
     weak var interactiveView: UIView?
-    /// The standalone account button beside the bar, if any — also interactive.
-    weak var accessory: UIView?
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard let hit = super.hitTest(point, with: event) else { return nil }
-        if let bar = interactiveView, !bar.isHidden, hit === bar || hit.isDescendant(of: bar) {
-            return hit
-        }
-        if let acc = accessory, !acc.isHidden, hit === acc || hit.isDescendant(of: acc) {
+        if let c = interactiveView, !c.isHidden, hit === c || hit.isDescendant(of: c) {
             return hit
         }
         return nil
@@ -33,23 +34,22 @@ final class PassthroughView: UIView {
 
 final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     let tabBar = UITabBar()
+    /// Horizontal container laying out the bar and the optional account button
+    /// side by side. The stack handles alignment + spacing, so the button needs
+    /// no absolute positioning.
+    private let container = UIStackView()
     private(set) var ids: [String] = []
     var onSelect: ((String) -> Void)?
 
-    /// The bar's trailing edge — pinned to the screen edge normally, or to the
-    /// account button's leading edge when an accessory is mounted (so the bar
-    /// shrinks to leave room beside it, à la Apple Music's search button).
-    private var trailingFull: NSLayoutConstraint!
-    private var trailingToAccessory: NSLayoutConstraint?
     private var accessoryButton: UIButton?
     private(set) var accessoryId: String?
 
-    /// Side of the accessory button, in points.
+    /// Side of the account button, in points.
     private static let accessorySide: CGFloat = 50
 
     override func loadView() {
         let passthrough = PassthroughView()
-        passthrough.interactiveView = tabBar
+        passthrough.interactiveView = container
         passthrough.backgroundColor = .clear
         view = passthrough
     }
@@ -57,15 +57,25 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         tabBar.delegate = self
-        tabBar.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(tabBar)
-        trailingFull = tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        // The bar grows to fill the row; the account button keeps its size.
+        tabBar.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        tabBar.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        container.axis = .horizontal
+        container.alignment = .center
+        container.distribution = .fill
+        container.spacing = 10
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.addArrangedSubview(tabBar)
+        view.addSubview(container)
+
+        let guide = view.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
-            tabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            trailingFull,
-            // UITabBar self-extends its background under the home indicator
-            // when pinned to the physical bottom edge.
-            tabBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            container.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -12),
+            // Sit just above the home indicator — where the iOS 26 bar floats —
+            // which keeps the bar at its natural (non-extended) height.
+            container.bottomAnchor.constraint(equalTo: guide.bottomAnchor),
         ])
     }
 
@@ -91,22 +101,17 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     }
 
     /// Mounts (or, with `id == nil`, removes) the circular account button beside
-    /// the bar. The avatar fills the circle; with no image, an SF Symbol over a
-    /// glass disc. Taps report through `onSelect(id)` — the same channel as
-    /// tabs — so the web app opens its account menu.
+    /// the bar in the stack. The avatar fills the circle; with no image, an SF
+    /// Symbol over a glass disc. Taps report through `onSelect(id)` — the same
+    /// channel as tabs — so the web app opens its account menu.
     func setAccessory(id: String?, image: UIImage?, sfSymbol: String?) {
-        trailingToAccessory?.isActive = false
-        trailingToAccessory = nil
         accessoryButton?.removeFromSuperview()
         accessoryButton = nil
-        (view as? PassthroughView)?.accessory = nil
         accessoryId = id
-        trailingFull.isActive = true
         guard let id else { return }
 
         let side = Self.accessorySide
         let button = UIButton(type: .custom)
-        button.translatesAutoresizingMaskIntoConstraints = false
         button.clipsToBounds = true
         button.layer.cornerRadius = side / 2
         if let image {
@@ -136,23 +141,15 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
             button.tintColor = .label
         }
         button.addAction(UIAction { [weak self] _ in self?.onSelect?(id) }, for: .touchUpInside)
-        view.addSubview(button)
-        let guide = view.safeAreaLayoutGuide
+        // Fixed size, and never compressed/stretched by the stack.
+        button.setContentHuggingPriority(.required, for: .horizontal)
+        button.setContentCompressionResistancePriority(.required, for: .horizontal)
         NSLayoutConstraint.activate([
             button.widthAnchor.constraint(equalToConstant: side),
             button.heightAnchor.constraint(equalToConstant: side),
-            button.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -12),
-            // Vertically centered on the bar's icon row (~49pt of content sitting
-            // just above the bottom safe-area inset).
-            button.centerYAnchor.constraint(equalTo: guide.bottomAnchor, constant: -24.5),
         ])
-        // Shrink the bar so the button sits beside it, not over it.
-        trailingFull.isActive = false
-        let shrink = tabBar.trailingAnchor.constraint(equalTo: button.leadingAnchor, constant: -10)
-        shrink.isActive = true
-        trailingToAccessory = shrink
+        container.addArrangedSubview(button)
         accessoryButton = button
-        (view as? PassthroughView)?.accessory = button
     }
 
     /// Side of bitmap tab icons (avatars), in points.
@@ -198,12 +195,12 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         return true
     }
 
-    /// Height of the region the bar occludes at the bottom of the screen,
-    /// in CSS points — what the web content should pad itself by.
+    /// Height of the region the nav container occludes at the bottom of the
+    /// screen, in CSS points — what the web content should pad itself by.
     var bottomInset: CGFloat {
         view.layoutIfNeeded()
         guard !(tabBar.items?.isEmpty ?? true), !tabBar.isHidden else { return 0 }
-        return max(0, view.bounds.height - tabBar.frame.minY)
+        return max(0, view.bounds.height - container.frame.minY)
     }
 
     // MARK: UITabBarDelegate

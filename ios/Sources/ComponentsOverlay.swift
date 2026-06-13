@@ -2,60 +2,14 @@
 //  ComponentsOverlay.swift
 //  tauri-plugin-system-components
 //
-//  Generic native overlay components (switch, button, slider, progress,
-//  image) floated over the webview, optionally inside a glass capsule.
-//  On iOS 26 glass is the real UIGlassEffect / glass button configurations;
-//  earlier systems get material blur / filled buttons.
+//  The controller hosting native overlay components over the webview. It only
+//  orchestrates — lifecycle (create / update / remove), optional glass-wrapping,
+//  and anchoring. Each component's own rendering lives in its file under
+//  `Components/`; the kind→builder mapping is `ComponentRegistry`.
 //
 
 import UIKit
 import WebKit
-
-class ComponentPropsArgs: Decodable {
-    let label: String?
-    let on: Bool?
-    let value: Double?
-    let min: Double?
-    let max: Double?
-    let sfSymbol: String?
-    let image: String?
-    let circular: Bool?
-    let glass: Bool?
-    let prominent: Bool?
-    let tint: String?
-    let width: Double?
-    let height: Double?
-    /// Top-left position in CSS points, for `absolute` placement.
-    let x: Double?
-    let y: Double?
-    /// Corner radius for `glass` panels.
-    let cornerRadius: Double?
-}
-
-class CreateComponentArgs: Decodable {
-    let id: String
-    let kind: String
-    let props: ComponentPropsArgs?
-    let anchor: String?
-    let dx: Double?
-    let dy: Double?
-    /// Insert below the (transparent) webview so DOM content renders sharp
-    /// on top while the view shows through unpainted page regions.
-    let below: Bool?
-}
-
-class UpdateComponentArgs: Decodable {
-    let id: String
-    let props: ComponentPropsArgs
-}
-
-class UpdateComponentsArgs: Decodable {
-    let components: [UpdateComponentArgs]
-}
-
-class RemoveComponentArgs: Decodable {
-    let id: String
-}
 
 /// Covers the host view but only claims touches landing on a managed
 /// component — everything else falls through to the webview.
@@ -67,9 +21,10 @@ final class ComponentsPassthroughView: UIView {
 }
 
 final class ComponentsOverlayController: UIViewController {
-    private var components: [String: (container: UIView, control: UIView)] = [:]
-    /// (id, event, on, value)
-    var onEvent: ((String, String, Bool?, Double?) -> Void)?
+    private var components: [String: (container: UIView, control: UIView, kind: String)] = [:]
+    private weak var webViewRef: WKWebView?
+    /// (id, event, on, value, detail)
+    var onEvent: ((String, String, Bool?, Double?, String?) -> Void)?
 
     override func loadView() {
         let v = ComponentsPassthroughView()
@@ -82,33 +37,21 @@ final class ComponentsOverlayController: UIViewController {
     // MARK: creation
 
     func create(_ args: CreateComponentArgs, webView: WKWebView?) {
-        remove(id: args.id)
+        webViewRef = webView
+        guard let container = build(args) else { return }
+
         let props = args.props
-        guard let control = makeControl(kind: args.kind, id: args.id, props: props) else {
-            return
-        }
-
-        var container = control
-        if props?.glass ?? false {
-            container = wrapInGlassCapsule(control)
-        }
-
         let anchor = args.anchor ?? "topTrailing"
         if args.below ?? false, let webView {
-            // Below the webview: make the webview transparent so unpainted
-            // DOM regions reveal the native view (barcode-scanner pattern).
+            // Below the webview: make the webview transparent so unpainted DOM
+            // regions reveal the native view (barcode-scanner pattern).
             webView.isOpaque = false
             webView.backgroundColor = .clear
             webView.scrollView.backgroundColor = .clear
             if anchor == "absolute" {
-                // DOM-synced panels go *inside* the scroll view, behind the
-                // WKContentView, at document coordinates — they then scroll
-                // natively with the page, no per-frame IPC needed.
                 webView.scrollView.insertSubview(container, at: 0)
                 placeByFrame(container, in: webView.scrollView, anchor: anchor, props: props)
             } else if let parent = webView.superview {
-                // Static layers (e.g. fill backdrops) stay pinned behind
-                // the webview itself.
                 parent.insertSubview(container, belowSubview: webView)
                 placeByFrame(container, in: parent, anchor: anchor, props: props)
             }
@@ -119,19 +62,40 @@ final class ComponentsOverlayController: UIViewController {
             container.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(container)
             activateAnchorConstraints(
-                for: container,
-                anchor: anchor,
-                dx: CGFloat(args.dx ?? 0),
-                dy: CGFloat(args.dy ?? 0)
-            )
-            if let w = props?.width {
-                control.widthAnchor.constraint(equalToConstant: CGFloat(w)).isActive = true
-            }
-            if let h = props?.height {
-                control.heightAnchor.constraint(equalToConstant: CGFloat(h)).isActive = true
+                for: container, anchor: anchor,
+                dx: CGFloat(args.dx ?? 0), dy: CGFloat(args.dy ?? 0),
+                inset: props?.inset.map { CGFloat($0) })
+            if let control = components[args.id]?.control {
+                if let w = props?.width {
+                    control.widthAnchor.constraint(equalToConstant: CGFloat(w)).isActive = true
+                }
+                if let h = props?.height {
+                    control.heightAnchor.constraint(equalToConstant: CGFloat(h)).isActive = true
+                }
             }
         }
-        components[args.id] = (container, control)
+    }
+
+    /// Build a component's view (recursively for `container` children), glass-wrap
+    /// it if asked, and register it by id so updates/removal can find it. Returns
+    /// the (possibly wrapped) view to mount.
+    @discardableResult
+    private func build(_ args: CreateComponentArgs) -> UIView? {
+        remove(id: args.id)
+        let ctx = ComponentContext(
+            emit: { [weak self] id, event, on, value, detail in
+                self?.onEvent?(id, event, on, value, detail)
+            },
+            webView: webViewRef,
+            makeChild: { [weak self] childArgs in self?.build(childArgs) }
+        )
+        guard let control = ComponentRegistry.make(args, ctx) else { return nil }
+        var container = control
+        if args.props?.glass ?? false {
+            container = wrapInGlassCapsule(control)
+        }
+        components[args.id] = (container, control, args.kind)
+        return container
     }
 
     /// Frame-based placement (UIKit coordinates match CSS: y from the top).
@@ -151,190 +115,26 @@ final class ComponentsOverlayController: UIViewController {
         }
     }
 
-    private func makeControl(kind: String, id: String, props: ComponentPropsArgs?) -> UIView? {
-        switch kind {
-        case "switch":
-            let control = UISwitch()
-            control.isOn = props?.on ?? false
-            if let tint = props?.tint.flatMap(Self.color(fromHex:)) {
-                control.onTintColor = tint
-            }
-            control.addAction(
-                UIAction { [weak self, weak control] _ in
-                    self?.onEvent?(id, "change", control?.isOn, nil)
-                }, for: .valueChanged)
-            return control
-
-        case "button":
-            // UIButton.Configuration (and the glass styles) are iOS 15 / 26;
-            // iOS 14 gets a plain UIButton with the same title/icon/tint.
-            if #available(iOS 15.0, *) {
-                var config: UIButton.Configuration
-                if #available(iOS 26.0, *) {
-                    config = (props?.prominent ?? false)
-                        ? UIButton.Configuration.prominentGlass()
-                        : UIButton.Configuration.glass()
-                } else {
-                    config = (props?.prominent ?? false)
-                        ? UIButton.Configuration.filled()
-                        : UIButton.Configuration.gray()
-                }
-                config.title = props?.label
-                if let b64 = props?.image, let decoded = ImageUtil.decode(b64) {
-                    config.image = ImageUtil.icon(
-                        decoded, side: 20, circular: props?.circular ?? false)
-                    config.imagePadding = 6
-                } else if let symbol = props?.sfSymbol {
-                    config.image = UIImage(systemName: symbol)
-                    config.imagePadding = 6
-                }
-                if let tint = props?.tint.flatMap(Self.color(fromHex:)) {
-                    config.baseBackgroundColor = tint
-                }
-                let control = UIButton(configuration: config)
-                control.addAction(
-                    UIAction { [weak self] _ in
-                        self?.onEvent?(id, "click", nil, nil)
-                    }, for: .touchUpInside)
-                return control
-            } else {
-                let control = UIButton(type: .system)
-                control.setTitle(props?.label, for: .normal)
-                if let b64 = props?.image, let decoded = ImageUtil.decode(b64) {
-                    control.setImage(
-                        ImageUtil.icon(decoded, side: 20, circular: props?.circular ?? false),
-                        for: .normal)
-                } else if let symbol = props?.sfSymbol {
-                    control.setImage(UIImage(systemName: symbol), for: .normal)
-                }
-                if let tint = props?.tint.flatMap(Self.color(fromHex:)) {
-                    control.backgroundColor = tint
-                }
-                control.addAction(
-                    UIAction { [weak self] _ in
-                        self?.onEvent?(id, "click", nil, nil)
-                    }, for: .touchUpInside)
-                return control
-            }
-
-        case "slider":
-            let control = UISlider()
-            control.minimumValue = Float(props?.min ?? 0)
-            control.maximumValue = Float(props?.max ?? 1)
-            control.value = Float(props?.value ?? 0)
-            if let tint = props?.tint.flatMap(Self.color(fromHex:)) {
-                control.tintColor = tint
-            }
-            control.addAction(
-                UIAction { [weak self, weak control] _ in
-                    self?.onEvent?(id, "change", nil, control.map { Double($0.value) })
-                }, for: .valueChanged)
-            if props?.width == nil {
-                // UISlider has no intrinsic width.
-                control.widthAnchor.constraint(equalToConstant: 160).isActive = true
-            }
-            return control
-
-        case "progress":
-            let control = UIProgressView(progressViewStyle: .default)
-            control.progress = Float(props?.value ?? 0)
-            if let tint = props?.tint.flatMap(Self.color(fromHex:)) {
-                control.progressTintColor = tint
-            }
-            return control
-
-        case "image":
-            let side = CGFloat(props?.width ?? props?.height ?? 48)
-            let control = UIImageView()
-            control.contentMode = .scaleAspectFill
-            control.clipsToBounds = true
-            if props?.circular ?? false {
-                control.layer.cornerRadius = side / 2
-            }
-            if let b64 = props?.image, let decoded = ImageUtil.decode(b64) {
-                control.image = decoded
-            }
-            return control
-
-        case "glass":
-            // A bare glass panel — real UIGlassEffect on iOS 26, material
-            // blur before that. Pair with below+absolute to back DOM cards.
-            let effect: UIVisualEffect
-            if #available(iOS 26.0, *) {
-                let glassEffect = UIGlassEffect()
-                if let tint = props?.tint.flatMap(ColorUtil.from(hex:)) {
-                    glassEffect.tintColor = tint
-                }
-                effect = glassEffect
-            } else {
-                effect = UIBlurEffect(style: .systemMaterial)
-            }
-            let control = UIVisualEffectView(effect: effect)
-            control.clipsToBounds = true
-            control.layer.cornerRadius = CGFloat(props?.cornerRadius ?? 18)
-            return control
-
-        default:
-            return nil
-        }
-    }
-
     // MARK: updates
 
     func update(id: String, props: ComponentPropsArgs) -> Bool {
-        guard let (container, control) = components[id] else { return false }
-        // Geometry updates (DOM scroll/resize sync).
+        guard let entry = components[id] else { return false }
+        // Geometry updates (DOM scroll/resize sync) act on the mounted view.
         if props.x != nil || props.y != nil || props.width != nil || props.height != nil {
-            var frame = container.frame
+            var frame = entry.container.frame
             if let w = props.width { frame.size.width = CGFloat(w) }
             if let h = props.height { frame.size.height = CGFloat(h) }
             if let x = props.x { frame.origin.x = CGFloat(x) }
             if let y = props.y { frame.origin.y = CGFloat(y) }
-            container.frame = frame
+            entry.container.frame = frame
         }
-        if let toggle = control as? UISwitch, let on = props.on {
-            toggle.setOn(on, animated: true)
-        }
-        if let slider = control as? UISlider, let value = props.value {
-            slider.setValue(Float(value), animated: true)
-        }
-        if let progress = control as? UIProgressView, let value = props.value {
-            progress.setProgress(Float(value), animated: true)
-        }
-        if let button = control as? UIButton {
-            // UIButton.configuration is iOS 15+; iOS 14 sets title/image directly.
-            if #available(iOS 15.0, *) {
-                var config = button.configuration
-                if let label = props.label {
-                    config?.title = label
-                }
-                if let b64 = props.image, let decoded = ImageUtil.decode(b64) {
-                    config?.image = ImageUtil.icon(
-                        decoded, side: 20, circular: props.circular ?? false)
-                }
-                button.configuration = config
-            } else {
-                if let label = props.label {
-                    button.setTitle(label, for: .normal)
-                }
-                if let b64 = props.image, let decoded = ImageUtil.decode(b64) {
-                    button.setImage(
-                        ImageUtil.icon(decoded, side: 20, circular: props.circular ?? false),
-                        for: .normal)
-                }
-            }
-        }
-        if let imageView = control as? UIImageView, let b64 = props.image,
-            let decoded = ImageUtil.decode(b64)
-        {
-            imageView.image = decoded
-        }
+        ComponentRegistry.update(entry.control, kind: entry.kind, props: props)
         return true
     }
 
     func remove(id: String) {
-        if let (container, _) = components.removeValue(forKey: id) {
-            container.removeFromSuperview()
+        if let entry = components.removeValue(forKey: id) {
+            entry.container.removeFromSuperview()
         }
     }
 
@@ -362,10 +162,10 @@ final class ComponentsOverlayController: UIViewController {
     }
 
     private func activateAnchorConstraints(
-        for container: UIView, anchor: String, dx: CGFloat, dy: CGFloat
+        for container: UIView, anchor: String, dx: CGFloat, dy: CGFloat, inset: CGFloat?
     ) {
         let guide = view.safeAreaLayoutGuide
-        let margin: CGFloat = 16
+        let margin: CGFloat = inset ?? 16
         var constraints: [NSLayoutConstraint] = []
         switch anchor {
         case "topLeading":
@@ -388,6 +188,27 @@ final class ComponentsOverlayController: UIViewController {
                 container.centerXAnchor.constraint(equalTo: guide.centerXAnchor, constant: dx),
                 container.centerYAnchor.constraint(equalTo: guide.centerYAnchor, constant: dy),
             ]
+        // Edge-centered: for docking a nav container against one safe-area edge.
+        case "bottom":
+            constraints = [
+                container.centerXAnchor.constraint(equalTo: guide.centerXAnchor, constant: dx),
+                container.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -(margin + dy)),
+            ]
+        case "top":
+            constraints = [
+                container.centerXAnchor.constraint(equalTo: guide.centerXAnchor, constant: dx),
+                container.topAnchor.constraint(equalTo: guide.topAnchor, constant: margin + dy),
+            ]
+        case "leading":
+            constraints = [
+                container.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: margin + dx),
+                container.centerYAnchor.constraint(equalTo: guide.centerYAnchor, constant: dy),
+            ]
+        case "trailing":
+            constraints = [
+                container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -(margin + dx)),
+                container.centerYAnchor.constraint(equalTo: guide.centerYAnchor, constant: dy),
+            ]
         default:  // topTrailing
             constraints = [
                 container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -(margin + dx)),
@@ -395,9 +216,5 @@ final class ComponentsOverlayController: UIViewController {
             ]
         }
         NSLayoutConstraint.activate(constraints)
-    }
-
-    private static func color(fromHex hex: String) -> UIColor? {
-        ColorUtil.from(hex: hex)
     }
 }

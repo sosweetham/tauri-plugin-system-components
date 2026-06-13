@@ -352,10 +352,11 @@ class SystemComponentsPlugin: Plugin {
     /// same pattern as the tab bar.
     private func mountComponents(on host: UIViewController) -> ComponentsOverlayController {
         let overlay = ComponentsOverlayController()
-        overlay.onEvent = { [weak self] id, event, on, value in
+        overlay.onEvent = { [weak self] id, event, on, value, detail in
             var data: JSObject = ["id": id, "event": event]
             if let on { data["on"] = on }
             if let value { data["value"] = value }
+            if let detail { data["detail"] = detail }
             self?.trigger("componentEvent", data: data)
         }
         host.addChild(overlay)

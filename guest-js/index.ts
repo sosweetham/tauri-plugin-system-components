@@ -64,7 +64,13 @@ export type ComponentKind =
   | 'slider'
   | 'progress'
   | 'image'
-  | 'glass';
+  | 'glass'
+  /** A layout container (stack) arranging its `children` along `props.axis` —
+   * compose your own nav (bar or sidebar) from it; imposes no layout. */
+  | 'container'
+  /** The system tab bar as a component: `props.items` are the tabs; selection
+   * arrives as a `select` event whose `detail` is the chosen tab id. */
+  | 'tabBar';
 
 /** Where a component is pinned, relative to the window/safe area. */
 export type ComponentAnchor =
@@ -73,6 +79,12 @@ export type ComponentAnchor =
   | 'bottomLeading'
   | 'bottomTrailing'
   | 'center'
+  /** Centered against one safe-area edge — for docking a nav container as a
+   * bottom bar or a side rail. `props.inset` sets the gap from the edge. */
+  | 'bottom'
+  | 'top'
+  | 'leading'
+  | 'trailing'
   /** Position by `props.x`/`props.y` (CSS points from the top-left). */
   | 'absolute'
   /** Cover the whole window, resizing with it. */
@@ -111,6 +123,22 @@ export interface ComponentProps {
   y?: number;
   /** Corner radius for `glass` panels. */
   cornerRadius?: number;
+
+  // ── `container` layout ──────────────────────────────────────────────────
+  /** `horizontal` (a bar) or `vertical` (a sidebar). Default `horizontal`. */
+  axis?: 'horizontal' | 'vertical';
+  /** Cross-axis alignment of children. Default `center`. */
+  align?: 'center' | 'leading' | 'trailing' | 'fill';
+  /** Gap between children, in points. */
+  spacing?: number;
+  /** Gap from the anchored safe-area edge, in points. */
+  inset?: number;
+
+  // ── `tabBar` ────────────────────────────────────────────────────────────
+  /** The tabs, when `kind === 'tabBar'`. */
+  items?: TabItem[];
+  /** Initially-selected tab id (defaults to the first). */
+  selectedId?: string;
 }
 
 export interface CreateComponentOptions {
@@ -129,16 +157,22 @@ export interface CreateComponentOptions {
    * full-window `fill` backdrop image behind the page).
    */
   below?: boolean;
+  /** Child components, when `kind === 'container'` — arranged along
+   * `props.axis`. Each child is a full spec, so containers nest and a
+   * `tabBar`/`button` can live inside. */
+  children?: CreateComponentOptions[];
 }
 
 export interface ComponentEvent {
   id: string;
-  /** `click` (button) or `change` (switch/slider). */
-  event: 'click' | 'change';
+  /** `click` (button), `change` (switch/slider), or `select` (tab bar). */
+  event: 'click' | 'change' | 'select';
   /** Switch state, on `change` events from switches. */
   on?: boolean;
   /** Slider value, on `change` events from sliders. */
   value?: number;
+  /** The chosen tab id, on `select` events from a `tabBar`. */
+  detail?: string;
 }
 
 export interface WindowGlassOptions {

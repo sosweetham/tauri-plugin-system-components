@@ -177,6 +177,14 @@ pub enum ComponentKind {
     /// fallback) — pair with `below: true` + `absolute` placement to back
     /// DOM elements with real glass (see `attachGlassCard` in the JS API).
     Glass,
+    /// A layout container (UIStackView / NSStackView) that arranges its
+    /// `children` along `props.axis` — the building block consumers compose
+    /// their own nav (bar or sidebar) from. Imposes no specific layout.
+    Container,
+    /// The system tab bar (UITabBar / NSSegmentedControl) as a composable
+    /// component: `props.items` are the tabs; selection arrives as a
+    /// `select` component event whose `detail` is the chosen tab id.
+    TabBar,
 }
 
 /// Where a component is pinned, relative to the window/safe area.
@@ -189,6 +197,13 @@ pub enum ComponentAnchor {
     BottomLeading,
     BottomTrailing,
     Center,
+    /// Centered against one edge of the safe area — for docking a nav
+    /// container as a bottom bar (`Bottom`) or a side rail (`Leading` /
+    /// `Trailing`). `props.inset` sets the gap from that edge.
+    Bottom,
+    Top,
+    Leading,
+    Trailing,
     /// Position by `props.x`/`props.y` (CSS points from the top-left) —
     /// for views synced to DOM element rects.
     Absolute,
@@ -229,6 +244,23 @@ pub struct ComponentProps {
     pub y: Option<f64>,
     /// Corner radius for `glass` panels.
     pub corner_radius: Option<f64>,
+
+    // ── `container` layout ───────────────────────────────────────────────
+    /// `horizontal` (a bar) or `vertical` (a sidebar). Default `horizontal`.
+    pub axis: Option<String>,
+    /// Cross-axis alignment of children: `center` (default) | `leading` |
+    /// `trailing` | `fill`.
+    pub align: Option<String>,
+    /// Gap between children, in points.
+    pub spacing: Option<f64>,
+    /// Gap from the anchored edge of the safe area, in points.
+    pub inset: Option<f64>,
+
+    // ── `tabBar` ─────────────────────────────────────────────────────────
+    /// The tabs, when `kind == tabBar`.
+    pub items: Option<Vec<TabItem>>,
+    /// Initially-selected tab id (defaults to the first).
+    pub selected_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -252,6 +284,11 @@ pub struct CreateComponentOptions {
     /// top while the glass refracts what's behind the page).
     #[serde(default)]
     pub below: bool,
+    /// Child components, when `kind == container` — arranged along
+    /// `props.axis`. Each child is a full component spec (so containers may
+    /// nest, and a `tabBar` or `button` can live inside).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub children: Option<Vec<CreateComponentOptions>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -282,12 +319,15 @@ pub struct RemoveComponentOptions {
 #[serde(rename_all = "camelCase")]
 pub struct ComponentEventPayload {
     pub id: String,
-    /// `click` (button) or `change` (switch/slider).
+    /// `click` (button), `change` (switch/slider), or `select` (tab bar).
     pub event: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub on: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<f64>,
+    /// String payload — the chosen tab id for a `tabBar` `select` event.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

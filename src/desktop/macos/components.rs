@@ -71,6 +71,10 @@ pub fn create<R: Runtime>(
         let id = options.id.clone();
 
         let control: Retained<NSView> = match options.kind {
+            // Composed nav (container / tab bar as components) isn't wired on
+            // macOS yet — the sidebar pass adds it. Skip cleanly so the existing
+            // configureTabBar path keeps owning the macOS nav for now.
+            ComponentKind::Container | ComponentKind::TabBar => return Ok(()),
             ComponentKind::Switch => {
                 let control = NSSwitch::new(mtm);
                 unsafe {
@@ -90,6 +94,7 @@ pub fn create<R: Runtime>(
                                 event: "change".into(),
                                 on: Some(state == 1),
                                 value: None,
+                                detail: None,
                             },
                         );
                     })),
@@ -136,6 +141,7 @@ pub fn create<R: Runtime>(
                                 event: "click".into(),
                                 on: None,
                                 value: None,
+                                detail: None,
                             },
                         );
                     })),
@@ -162,6 +168,7 @@ pub fn create<R: Runtime>(
                                 event: "change".into(),
                                 on: None,
                                 value: Some(value),
+                                detail: None,
                             },
                         );
                     })),
@@ -315,6 +322,36 @@ pub fn create<R: Runtime>(
                 (bh - h) / 2.0 - options.dy,
                 NSAutoresizingMaskOptions::ViewMinXMargin
                     | NSAutoresizingMaskOptions::ViewMaxXMargin
+                    | NSAutoresizingMaskOptions::ViewMinYMargin
+                    | NSAutoresizingMaskOptions::ViewMaxYMargin,
+            ),
+            // Edge-centered anchors (for docking a nav container). `inset` is the
+            // gap from the safe-area edge.
+            ComponentAnchor::Bottom => (
+                (bw - w) / 2.0 + options.dx,
+                props.inset.unwrap_or(EDGE_MARGIN) + options.dy,
+                NSAutoresizingMaskOptions::ViewMinXMargin
+                    | NSAutoresizingMaskOptions::ViewMaxXMargin
+                    | NSAutoresizingMaskOptions::ViewMaxYMargin,
+            ),
+            ComponentAnchor::Top => (
+                (bw - w) / 2.0 + options.dx,
+                bh - h - props.inset.unwrap_or(EDGE_MARGIN) - options.dy,
+                NSAutoresizingMaskOptions::ViewMinXMargin
+                    | NSAutoresizingMaskOptions::ViewMaxXMargin
+                    | NSAutoresizingMaskOptions::ViewMinYMargin,
+            ),
+            ComponentAnchor::Leading => (
+                props.inset.unwrap_or(EDGE_MARGIN) + options.dx,
+                (bh - h) / 2.0 - options.dy,
+                NSAutoresizingMaskOptions::ViewMaxXMargin
+                    | NSAutoresizingMaskOptions::ViewMinYMargin
+                    | NSAutoresizingMaskOptions::ViewMaxYMargin,
+            ),
+            ComponentAnchor::Trailing => (
+                bw - w - props.inset.unwrap_or(EDGE_MARGIN) - options.dx,
+                (bh - h) / 2.0 - options.dy,
+                NSAutoresizingMaskOptions::ViewMinXMargin
                     | NSAutoresizingMaskOptions::ViewMinYMargin
                     | NSAutoresizingMaskOptions::ViewMaxYMargin,
             ),
