@@ -24,6 +24,19 @@ pub struct TabItem {
     pub badge: Option<String>,
 }
 
+/// A standalone account button floated beside the bar (Apple Music
+/// search-button style). `image` (base64 / data URL) wins over `sf_symbol`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccessoryItem {
+    /// Stable id reported back in `tabSelected` events when tapped.
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sf_symbol: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigureTabBarOptions {
@@ -35,6 +48,10 @@ pub struct ConfigureTabBarOptions {
     /// capsule tint + selected segment color on macOS.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tint: Option<String>,
+    /// Optional circular account button beside the bar (iOS). Ignored on macOS,
+    /// where the account button is an overlay component instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accessory: Option<AccessoryItem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

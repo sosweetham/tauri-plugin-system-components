@@ -27,11 +27,21 @@ class TabItemArgs: Decodable {
     let badge: String?
 }
 
+/// The standalone account button beside the bar (Apple Music search-button
+/// style). `image` (base64 / data URL) takes precedence over `sfSymbol`.
+class AccessoryArgs: Decodable {
+    let id: String
+    let sfSymbol: String?
+    let image: String?
+}
+
 class ConfigureTabBarArgs: Decodable {
     let items: [TabItemArgs]
     let selectedId: String?
-    /// Hex accent color — applied as UITabBar.tintColor (selected item).
+    /// Hex accent color — applied to the selected item via the bar appearance.
     let tint: String?
+    /// Optional circular account button floated beside the bar.
+    let accessory: AccessoryArgs?
 }
 
 class SelectTabArgs: Decodable {
@@ -67,7 +77,16 @@ class LiquidGlassPlugin: Plugin {
             // Idempotent: reconfiguring updates the mounted bar in place.
             let overlay = self.overlay ?? self.mount(on: host)
             overlay.apply(items: args.items, selectedId: args.selectedId)
-            overlay.tabBar.tintColor = args.tint.flatMap(ColorUtil.from(hex:))
+            overlay.applyTint(args.tint.flatMap(ColorUtil.from(hex:)))
+            if let acc = args.accessory {
+                // Avatar aspect-filled to a square; the round button clips it.
+                let image = acc.image.flatMap(ImageUtil.decode).map {
+                    ImageUtil.icon($0, side: 50, circular: false)
+                }
+                overlay.setAccessory(id: acc.id, image: image, sfSymbol: acc.sfSymbol)
+            } else {
+                overlay.setAccessory(id: nil, image: nil, sfSymbol: nil)
+            }
             invoke.resolve()
         }
     }

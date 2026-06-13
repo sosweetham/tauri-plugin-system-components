@@ -23,6 +23,17 @@ export interface TabItem {
   badge?: string;
 }
 
+/**
+ * A standalone account button floated beside the bar (Apple Music
+ * search-button style). `image` (base64 / `data:` URL) wins over `sfSymbol`.
+ */
+export interface TabBarAccessory {
+  /** Stable id reported back in `tabSelected` events when tapped. */
+  id: string;
+  sfSymbol?: string;
+  image?: string;
+}
+
 export interface ConfigureTabBarOptions {
   items: TabItem[];
   /** Tab to select initially; defaults to the first item. */
@@ -32,6 +43,12 @@ export interface ConfigureTabBarOptions {
    * capsule tint + selected segment color on macOS.
    */
   tint?: string;
+  /**
+   * Optional circular account button beside the bar — iOS renders it as a
+   * native tab-bar accessory (the bar shrinks to make room); taps arrive
+   * through {@link onTabSelected} with this `id`. Ignored on macOS.
+   */
+  accessory?: TabBarAccessory;
 }
 
 /** Space the web content should reserve so the floating bar doesn't cover it. */
