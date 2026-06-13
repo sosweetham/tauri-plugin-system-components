@@ -24,6 +24,8 @@ permissions = [
   "allow-select-tab",
   "allow-set-badge",
   "allow-get-tab-bar-insets",
+  "allow-present-sheet",
+  "allow-dismiss-sheet",
   "allow-create-component",
   "allow-update-component",
   "allow-update-components",

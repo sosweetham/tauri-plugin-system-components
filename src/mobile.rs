@@ -88,6 +88,14 @@ impl<R: Runtime> LiquidGlass<R> {
         ios_command!(self, "getTabBarInsets", ())
     }
 
+    pub fn present_sheet(&self, options: PresentSheetOptions) -> crate::Result<()> {
+        ios_command!(self, "presentSheet", options)
+    }
+
+    pub fn dismiss_sheet(&self, options: DismissSheetOptions) -> crate::Result<()> {
+        ios_command!(self, "dismissSheet", options)
+    }
+
     pub fn create_component(&self, options: CreateComponentOptions) -> crate::Result<()> {
         ios_command!(self, "createComponent", options)
     }

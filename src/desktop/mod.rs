@@ -106,6 +106,14 @@ impl<R: Runtime> LiquidGlass<R> {
         )
     }
 
+    pub fn present_sheet(&self, _options: PresentSheetOptions) -> crate::Result<()> {
+        Err(crate::Error::Unsupported("native sheets are iOS-only"))
+    }
+
+    pub fn dismiss_sheet(&self, _options: DismissSheetOptions) -> crate::Result<()> {
+        Err(crate::Error::Unsupported("native sheets are iOS-only"))
+    }
+
     pub fn create_component(&self, options: CreateComponentOptions) -> crate::Result<()> {
         let _ = &options;
         macos_only!(

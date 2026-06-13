@@ -23,6 +23,8 @@ Default permissions for the liquid-glass plugin.
 - `allow-select-tab`
 - `allow-set-badge`
 - `allow-get-tab-bar-insets`
+- `allow-present-sheet`
+- `allow-dismiss-sheet`
 - `allow-create-component`
 - `allow-update-component`
 - `allow-update-components`
@@ -123,6 +125,32 @@ Denies the create_component command without any pre-configured scope.
 <tr>
 <td>
 
+`liquid-glass:allow-dismiss-sheet`
+
+</td>
+<td>
+
+Enables the dismiss_sheet command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:deny-dismiss-sheet`
+
+</td>
+<td>
+
+Denies the dismiss_sheet command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `liquid-glass:allow-get-tab-bar-insets`
 
 </td>
@@ -194,6 +222,32 @@ Enables the is_glass_supported command without any pre-configured scope.
 <td>
 
 Denies the is_glass_supported command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:allow-present-sheet`
+
+</td>
+<td>
+
+Enables the present_sheet command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`liquid-glass:deny-present-sheet`
+
+</td>
+<td>
+
+Denies the present_sheet command without any pre-configured scope.
 
 </td>
 </tr>

@@ -49,6 +49,22 @@ pub(crate) async fn get_tab_bar_insets<R: Runtime>(app: AppHandle<R>) -> Result<
 }
 
 #[command]
+pub(crate) async fn present_sheet<R: Runtime>(
+    app: AppHandle<R>,
+    options: PresentSheetOptions,
+) -> Result<()> {
+    app.liquid_glass().present_sheet(options)
+}
+
+#[command]
+pub(crate) async fn dismiss_sheet<R: Runtime>(
+    app: AppHandle<R>,
+    options: DismissSheetOptions,
+) -> Result<()> {
+    app.liquid_glass().dismiss_sheet(options)
+}
+
+#[command]
 pub(crate) async fn create_component<R: Runtime>(
     app: AppHandle<R>,
     options: CreateComponentOptions,

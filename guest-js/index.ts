@@ -257,6 +257,98 @@ export async function onTabSelected(
   };
 }
 
+/** One natively-rendered row in a native sheet (iOS). */
+export interface SheetRow {
+  /** Stable id reported in `sheetRow` events when tapped. */
+  id: string;
+  label: string;
+  /** Secondary line. */
+  detail?: string;
+  /** Bitmap (base64 / `data:` URL) — e.g. the avatar. Wins over `sfSymbol`. */
+  image?: string;
+  sfSymbol?: string;
+  /** Trailing badge text (e.g. a count). */
+  badge?: string;
+  /** Render in the destructive (red) style. */
+  destructive?: boolean;
+  /** A non-tappable identity header row (avatar + name + email). */
+  header?: boolean;
+}
+
+export interface PresentSheetOptions {
+  /** Stable id reported in `sheetRow` / `sheetDismissed` events. */
+  id: string;
+  /** Hex accent `#RRGGBB[AA]` for badges. */
+  tint?: string;
+  rows: SheetRow[];
+}
+
+export interface SheetRowEvent {
+  sheetId: string;
+  rowId: string;
+}
+
+export interface SheetDismissedEvent {
+  sheetId: string;
+}
+
+/**
+ * Presents a native liquid-glass bottom sheet (iOS) — real detents, grabber,
+ * drag-to-dismiss — whose rows are rendered natively from `rows`. Rejects on
+ * macOS/Windows/Linux (use an HTML sheet there). Row taps arrive through
+ * {@link onSheetRow}; user dismissal through {@link onSheetDismissed}.
+ */
+export async function presentSheet(options: PresentSheetOptions): Promise<void> {
+  await invoke('plugin:liquid-glass|present_sheet', { options });
+}
+
+/** Dismisses a sheet by id. iOS. */
+export async function dismissSheet(id: string): Promise<void> {
+  await invoke('plugin:liquid-glass|dismiss_sheet', { options: { id } });
+}
+
+/** Listens for taps on a native sheet's rows. */
+export async function onSheetRow(
+  handler: (event: SheetRowEvent) => void,
+): Promise<TabSelectedListener> {
+  const unlistenEvent = await listen<SheetRowEvent>(
+    'liquid-glass://sheet-row',
+    (event) => handler(event.payload),
+  );
+  const pluginListener = await addPluginListener<SheetRowEvent>(
+    'liquid-glass',
+    'sheetRow',
+    handler,
+  ).catch(() => null);
+  return {
+    async unregister() {
+      unlistenEvent();
+      await pluginListener?.unregister();
+    },
+  };
+}
+
+/** Listens for user dismissal (swipe / tap-away) of a native sheet. */
+export async function onSheetDismissed(
+  handler: (event: SheetDismissedEvent) => void,
+): Promise<TabSelectedListener> {
+  const unlistenEvent = await listen<SheetDismissedEvent>(
+    'liquid-glass://sheet-dismissed',
+    (event) => handler(event.payload),
+  );
+  const pluginListener = await addPluginListener<SheetDismissedEvent>(
+    'liquid-glass',
+    'sheetDismissed',
+    handler,
+  ).catch(() => null);
+  return {
+    async unregister() {
+      unlistenEvent();
+      await pluginListener?.unregister();
+    },
+  };
+}
+
 /**
  * Creates (or replaces, by `id`) a native overlay component floating over
  * the webview: switch, button, slider, progress bar, or image view (e.g. a
