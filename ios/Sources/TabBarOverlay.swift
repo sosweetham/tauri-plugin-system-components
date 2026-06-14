@@ -116,7 +116,11 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
             button.contentVerticalAlignment = .fill
         } else {
             let effect: UIVisualEffect = {
+                // UIGlassEffect ships in the iOS 26 SDK (Xcode 26 / Swift 6.2);
+                // compile it out on older SDKs that lack the symbol.
+                #if compiler(>=6.2)
                 if #available(iOS 26.0, *) { return UIGlassEffect() }
+                #endif
                 return UIBlurEffect(style: .systemMaterial)
             }()
             let disc = UIVisualEffectView(effect: effect)

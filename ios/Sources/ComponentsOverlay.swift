@@ -142,11 +142,17 @@ final class ComponentsOverlayController: UIViewController {
 
     private func wrapInGlassCapsule(_ control: UIView) -> UIView {
         let effect: UIVisualEffect
+        // UIGlassEffect ships in the iOS 26 SDK (Xcode 26 / Swift 6.2); compile
+        // it out on older SDKs that lack the symbol.
+        #if compiler(>=6.2)
         if #available(iOS 26.0, *) {
             effect = UIGlassEffect()
         } else {
             effect = UIBlurEffect(style: .systemMaterial)
         }
+        #else
+        effect = UIBlurEffect(style: .systemMaterial)
+        #endif
         let capsule = UIVisualEffectView(effect: effect)
         capsule.clipsToBounds = true
         capsule.layer.cornerRadius = 24
