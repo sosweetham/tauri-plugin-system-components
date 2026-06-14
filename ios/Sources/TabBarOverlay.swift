@@ -44,8 +44,24 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     private var accessoryButton: UIButton?
     private(set) var accessoryId: String?
 
-    /// Side of the accessory button, in points.
+    /// The accessory's size and vertical placement are derived from the bar's
+    /// live geometry (see `updateAccessoryGeometry`), so they are held here and
+    /// refreshed on every layout pass rather than frozen at mount time.
+    private var accessoryWidth: NSLayoutConstraint?
+    private var accessoryHeight: NSLayoutConstraint?
+    private var accessoryCenterY: NSLayoutConstraint?
+
+    /// Fallback button side used before the bar has a measurable frame.
     private static let accessorySide: CGFloat = 50
+
+    /// The bar's *visible* content-row height — its frame height minus the
+    /// home-indicator inset it self-extends under. This is the height of the
+    /// glass pill the user sees, so the accessory matches it to read as a
+    /// sibling, and the icon row is centered within it.
+    private var barContentHeight: CGFloat {
+        let h = tabBar.bounds.height - tabBar.safeAreaInsets.bottom
+        return h > 1 ? h : Self.accessorySide
+    }
 
     override func loadView() {
         let passthrough = PassthroughView()
@@ -99,6 +115,9 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         trailingToAccessory = nil
         accessoryButton?.removeFromSuperview()
         accessoryButton = nil
+        accessoryWidth = nil
+        accessoryHeight = nil
+        accessoryCenterY = nil
         (view as? PassthroughView)?.accessory = nil
         accessoryId = id
         trailingFull.isActive = true
@@ -142,14 +161,23 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         button.addAction(UIAction { [weak self] _ in self?.onSelect?(id) }, for: .touchUpInside)
         view.addSubview(button)
         let guide = view.safeAreaLayoutGuide
+        // Size and vertical placement are seeded from `side` and refined in
+        // `updateAccessoryGeometry` once the bar reports a real frame: the
+        // button matches the bar's content-row height and centers on it by
+        // anchoring to the bar's own top (not a safe-area guess), so it stays
+        // aligned across devices, orientations, and SDK metric changes.
+        let widthC = button.widthAnchor.constraint(equalToConstant: side)
+        let heightC = button.heightAnchor.constraint(equalToConstant: side)
+        let centerYC = button.centerYAnchor.constraint(equalTo: tabBar.topAnchor, constant: side / 2)
         NSLayoutConstraint.activate([
-            button.widthAnchor.constraint(equalToConstant: side),
-            button.heightAnchor.constraint(equalToConstant: side),
+            widthC,
+            heightC,
             button.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -12),
-            // Vertically centered on the bar's icon row (~49pt of content sitting
-            // just above the bottom safe-area inset).
-            button.centerYAnchor.constraint(equalTo: guide.bottomAnchor, constant: -24.5),
+            centerYC,
         ])
+        accessoryWidth = widthC
+        accessoryHeight = heightC
+        accessoryCenterY = centerYC
         // Shrink the bar so the button sits beside it, not over it.
         trailingFull.isActive = false
         let shrink = tabBar.trailingAnchor.constraint(equalTo: button.leadingAnchor, constant: -10)
@@ -157,6 +185,28 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         trailingToAccessory = shrink
         accessoryButton = button
         (view as? PassthroughView)?.accessory = button
+        view.setNeedsLayout()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateAccessoryGeometry()
+    }
+
+    /// Match the accessory button to the bar's live content-row geometry: a
+    /// circle the same height as the visible glass pill, vertically centered on
+    /// the bar's icon row. Anchoring to `tabBar.topAnchor` plus half the content
+    /// height lands on that row's center regardless of the home-indicator inset
+    /// the bar extends under — which is why this replaces the old hardcoded
+    /// `-24.5` offset that only held for one device metric.
+    private func updateAccessoryGeometry() {
+        guard let button = accessoryButton else { return }
+        let side = barContentHeight
+        guard abs((accessoryHeight?.constant ?? 0) - side) > 0.5 else { return }
+        accessoryWidth?.constant = side
+        accessoryHeight?.constant = side
+        accessoryCenterY?.constant = side / 2
+        button.layer.cornerRadius = side / 2
     }
 
     /// Side of bitmap tab icons (avatars), in points.
