@@ -33,6 +33,10 @@ enum ButtonComponent: ComponentBuilder {
         // gets a plain UIButton with the same title/icon/tint.
         if #available(iOS 15.0, *) {
             var config: UIButton.Configuration
+            // The glass button configurations only exist in the iOS 26 SDK
+            // (Xcode 26 / Swift 6.2); compile the filled/gray fallback when
+            // building against an older SDK that can't see those symbols.
+            #if compiler(>=6.2)
             if #available(iOS 26.0, *) {
                 config = (props?.prominent ?? false)
                     ? UIButton.Configuration.prominentGlass()
@@ -42,6 +46,11 @@ enum ButtonComponent: ComponentBuilder {
                     ? UIButton.Configuration.filled()
                     : UIButton.Configuration.gray()
             }
+            #else
+            config = (props?.prominent ?? false)
+                ? UIButton.Configuration.filled()
+                : UIButton.Configuration.gray()
+            #endif
             config.title = props?.label
             if let b64 = props?.image, let decoded = ImageUtil.decode(b64) {
                 config.image = ImageUtil.icon(decoded, side: 20, circular: props?.circular ?? false)
