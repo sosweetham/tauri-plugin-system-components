@@ -185,7 +185,8 @@ pub fn select<R: Runtime>(
         .unwrap()
         .iter()
         .position(|i| *i == id)
-        .ok_or_else(|| Error::WindowHandle(format!("unknown tab id: {id}")))? as isize;
+        .ok_or_else(|| Error::WindowHandle(format!("unknown tab id: {id}")))?
+        as isize;
     on_main_thread(&window, move |win| {
         let content = content_view(win)?;
         let control = find_subview(&content, &control_id())

@@ -5,8 +5,8 @@ use objc2::msg_send;
 use objc2::rc::Retained;
 use objc2::sel;
 use objc2_app_kit::{
-    NSAutoresizingMaskOptions, NSColor, NSView, NSVisualEffectBlendingMode,
-    NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView, NSWindowOrderingMode,
+    NSAutoresizingMaskOptions, NSColor, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial,
+    NSVisualEffectState, NSVisualEffectView, NSWindowOrderingMode,
 };
 use objc2_foundation::{MainThreadMarker, NSObjectProtocol};
 use tauri::{Runtime, WebviewWindow};

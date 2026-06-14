@@ -7,9 +7,9 @@ use objc2::rc::Retained;
 use objc2::{msg_send, sel};
 use objc2_app_kit::{
     NSAutoresizingMaskOptions, NSBezelStyle, NSButton, NSColor, NSImage, NSImageScaling,
-    NSImageView, NSProgressIndicator, NSProgressIndicatorStyle, NSSlider, NSSwitch,
+    NSImageView, NSProgressIndicator, NSProgressIndicatorStyle, NSSlider, NSSwitch, NSView,
     NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView,
-    NSView, NSWindowOrderingMode,
+    NSWindowOrderingMode,
 };
 use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri::{AppHandle, Emitter, Runtime, WebviewWindow};
@@ -78,8 +78,7 @@ pub fn create<R: Runtime>(
             ComponentKind::Switch => {
                 let control = NSSwitch::new(mtm);
                 unsafe {
-                    let _: () =
-                        msg_send![&*control, setState: if props.on.unwrap_or(false) { 1isize } else { 0 }];
+                    let _: () = msg_send![&*control, setState: if props.on.unwrap_or(false) { 1isize } else { 0 }];
                 }
                 let app = app.clone();
                 let event_id = id.clone();
@@ -233,8 +232,7 @@ pub fn create<R: Runtime>(
                         effect.setState(NSVisualEffectState::Active);
                         unsafe {
                             effect.setWantsLayer(true);
-                            let layer: *mut objc2::runtime::AnyObject =
-                                msg_send![&*effect, layer];
+                            let layer: *mut objc2::runtime::AnyObject = msg_send![&*effect, layer];
                             if !layer.is_null() {
                                 let _: () = msg_send![layer, setCornerRadius: radius];
                                 let _: () = msg_send![layer, setMasksToBounds: true];

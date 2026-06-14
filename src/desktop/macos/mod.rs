@@ -11,6 +11,7 @@ use std::sync::mpsc;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyClass, AnyObject, NSObject};
 use objc2::{define_class, msg_send, sel, AllocAnyThread, DefinedClass};
+use objc2_app_kit::NSWindow;
 use objc2_app_kit::{
     NSImage, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState,
     NSVisualEffectView,
@@ -19,7 +20,6 @@ use objc2_foundation::{
     MainThreadMarker, NSData, NSDataBase64DecodingOptions, NSObjectProtocol, NSPoint, NSRect,
     NSSize, NSString,
 };
-use objc2_app_kit::NSWindow;
 use tauri::{Runtime, WebviewWindow};
 
 use crate::models::GlassSupport;

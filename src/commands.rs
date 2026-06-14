@@ -1,8 +1,8 @@
 use tauri::{command, AppHandle, Manager, Runtime, WebviewWindow};
 
 use crate::models::*;
-use crate::SystemComponentsExt;
 use crate::Result;
+use crate::SystemComponentsExt;
 
 #[command]
 pub(crate) async fn configure_tab_bar<R: Runtime>(
