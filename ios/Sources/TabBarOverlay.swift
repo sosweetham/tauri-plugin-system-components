@@ -165,17 +165,13 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         button.addAction(UIAction { [weak self] _ in self?.onSelect?(id) }, for: .touchUpInside)
         view.addSubview(button)
         let guide = view.safeAreaLayoutGuide
-        // Size and vertical placement are seeded from `side` and refined in
-        // `updateAccessoryGeometry` once the bar reports a real frame: the
-        // button matches the bar's content-row height and centers on it by
-        // anchoring to the bar's own top (not a safe-area guess), so it stays
-        // aligned across devices, orientations, and SDK metric changes.
         // Align the avatar to the bar's *content row* via the bar's own safe-area
         // layout guide: the guide excludes the home-indicator strip the bar
         // self-extends under, so its center is the glass-pill center. Centre the
-        // avatar on that, but size it to a fraction of the row height so there's
-        // margin above and below it (a smaller circle seated in the row, not a
-        // disc stretched to the full bar height).
+        // avatar on that. The width/height constants are seeded from `side` and
+        // refined in `updateAccessoryGeometry` once the bar reports a real frame,
+        // so the avatar tracks the live content-row height across devices,
+        // orientations, and SDK metric changes rather than freezing at 50pt.
         let barGuide = tabBar.safeAreaLayoutGuide
         let heightC = button.heightAnchor.constraint(equalToConstant: Self.accessorySide)
         let widthC = button.widthAnchor.constraint(equalToConstant: Self.accessorySide)
@@ -214,8 +210,13 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     /// `-24.5` offset that only held for one device metric.
     private func updateAccessoryGeometry() {
         guard let button = accessoryButton, button.bounds.height > 1 else { return }
-        // Size/placement come from constraints on the bar's safe-area guide; here
-        // we only keep the avatar perfectly circular as that height resolves.
+        // Drive the avatar's size from the bar's live content-row height (the
+        // visible glass-pill height) so it reads as an equal-height sibling on
+        // every device metric, instead of staying frozen at the seed `side`.
+        let side = barContentHeight
+        if let widthC = accessoryWidth, widthC.constant != side { widthC.constant = side }
+        if let heightC = accessoryHeight, heightC.constant != side { heightC.constant = side }
+        // Keep the avatar perfectly circular as that height resolves.
         button.layer.cornerRadius = button.bounds.height / 2
         NSLog(
             "[pendi-nav][native] TabBarOverlay geometry barFrame=%@ barSafeBottom=%.1f avatar=%@",
