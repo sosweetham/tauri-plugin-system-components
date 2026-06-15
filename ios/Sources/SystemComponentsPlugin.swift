@@ -301,26 +301,37 @@ class SystemComponentsPlugin: Plugin {
             // so a caller swapping one native sheet for another (dismiss A +
             // present B in the same turn) would otherwise have to time an
             // arbitrary delay. Instead we wait for the host to settle: ride out
-            // an animating transition via its coordinator, clear any idle modal
-            // still up, then present — attempt-capped so a stuck modal can't loop.
-            func present() {
-                host.present(sheet, animated: true) {
+            // an animating transition via its coordinator; if one of OUR sheets
+            // is still up, dismiss it and swap; if a modal we DON'T own is up
+            // (system alert, share sheet, permission prompt, …) leave it and
+            // present above it. Attempt-capped so a stuck modal can't loop.
+            func present(from presenter: UIViewController) {
+                presenter.present(sheet, animated: true) {
                     sheet.presentationController?.delegate = sheet
                 }
             }
             func presentWhenClear(_ attempt: Int) {
                 if attempt >= 10 {
-                    present()
+                    present(from: host)
                     return
                 }
                 if let coordinator = host.transitionCoordinator {
                     coordinator.animate(alongsideTransition: nil) { _ in
                         presentWhenClear(attempt + 1)
                     }
-                } else if let presented = host.presentedViewController, presented !== sheet {
-                    presented.dismiss(animated: true) { presentWhenClear(attempt + 1) }
+                    return
+                }
+                // Walk to the topmost presented controller.
+                var top: UIViewController = host
+                while let next = top.presentedViewController { top = next }
+                if top === host {
+                    present(from: host)
+                } else if self.sheets.values.contains(where: { $0 === top }) {
+                    // Our own sheet — dismiss it, then swap in the new one.
+                    top.dismiss(animated: true) { presentWhenClear(attempt + 1) }
                 } else {
-                    present()
+                    // A modal we don't own — never force-dismiss it; stack above.
+                    present(from: top)
                 }
             }
             presentWhenClear(0)
