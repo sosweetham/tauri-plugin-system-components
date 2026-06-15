@@ -44,8 +44,28 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     private var accessoryButton: UIButton?
     private(set) var accessoryId: String?
 
-    /// Side of the accessory button, in points.
+    /// The accessory's size and vertical placement are derived from the bar's
+    /// live geometry (see `updateAccessoryGeometry`), so they are held here and
+    /// refreshed on every layout pass rather than frozen at mount time.
+    private var accessoryWidth: NSLayoutConstraint?
+    private var accessoryHeight: NSLayoutConstraint?
+    private var accessoryCenterY: NSLayoutConstraint?
+
+    /// Avatar diameter, in points.
     private static let accessorySide: CGFloat = 50
+    /// Gap between the avatar's trailing edge and the safe-area edge.
+    private static let accessoryEdgeMargin: CGFloat = 16
+    /// Gap between the bar's trailing edge and the avatar's leading edge.
+    private static let accessoryGap: CGFloat = 14
+
+    /// The bar's *visible* content-row height — its frame height minus the
+    /// home-indicator inset it self-extends under. This is the height of the
+    /// glass pill the user sees, so the accessory matches it to read as a
+    /// sibling, and the icon row is centered within it.
+    private var barContentHeight: CGFloat {
+        let h = tabBar.bounds.height - tabBar.safeAreaInsets.bottom
+        return h > 1 ? h : Self.accessorySide
+    }
 
     override func loadView() {
         let passthrough = PassthroughView()
@@ -99,6 +119,9 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         trailingToAccessory = nil
         accessoryButton?.removeFromSuperview()
         accessoryButton = nil
+        accessoryWidth = nil
+        accessoryHeight = nil
+        accessoryCenterY = nil
         (view as? PassthroughView)?.accessory = nil
         accessoryId = id
         trailingFull.isActive = true
@@ -142,21 +165,63 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         button.addAction(UIAction { [weak self] _ in self?.onSelect?(id) }, for: .touchUpInside)
         view.addSubview(button)
         let guide = view.safeAreaLayoutGuide
+        // Align the avatar to the bar's *content row* via the bar's own safe-area
+        // layout guide: the guide excludes the home-indicator strip the bar
+        // self-extends under, so its center is the glass-pill center. Centre the
+        // avatar on that. The width/height constants are seeded from `side` and
+        // refined in `updateAccessoryGeometry` once the bar reports a real frame,
+        // so the avatar tracks the live content-row height across devices,
+        // orientations, and SDK metric changes rather than freezing at 50pt.
+        let barGuide = tabBar.safeAreaLayoutGuide
+        let heightC = button.heightAnchor.constraint(equalToConstant: Self.accessorySide)
+        let widthC = button.widthAnchor.constraint(equalToConstant: Self.accessorySide)
+        let centerYC = button.centerYAnchor.constraint(equalTo: barGuide.centerYAnchor)
         NSLayoutConstraint.activate([
-            button.widthAnchor.constraint(equalToConstant: side),
-            button.heightAnchor.constraint(equalToConstant: side),
-            button.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -12),
-            // Vertically centered on the bar's icon row (~49pt of content sitting
-            // just above the bottom safe-area inset).
-            button.centerYAnchor.constraint(equalTo: guide.bottomAnchor, constant: -24.5),
+            widthC,
+            heightC,
+            button.trailingAnchor.constraint(
+                equalTo: guide.trailingAnchor, constant: -Self.accessoryEdgeMargin),
+            centerYC,
         ])
-        // Shrink the bar so the button sits beside it, not over it.
+        accessoryWidth = widthC
+        accessoryHeight = heightC
+        accessoryCenterY = centerYC
+        // Shrink the bar so the button sits beside it, with a gap between them.
         trailingFull.isActive = false
-        let shrink = tabBar.trailingAnchor.constraint(equalTo: button.leadingAnchor, constant: -10)
+        let shrink = tabBar.trailingAnchor.constraint(
+            equalTo: button.leadingAnchor, constant: -Self.accessoryGap)
         shrink.isActive = true
         trailingToAccessory = shrink
         accessoryButton = button
         (view as? PassthroughView)?.accessory = button
+        view.setNeedsLayout()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateAccessoryGeometry()
+    }
+
+    /// Match the accessory button to the bar's live content-row geometry: a
+    /// circle the same height as the visible glass pill, vertically centered on
+    /// the bar's icon row. Anchoring to `tabBar.topAnchor` plus half the content
+    /// height lands on that row's center regardless of the home-indicator inset
+    /// the bar extends under — which is why this replaces the old hardcoded
+    /// `-24.5` offset that only held for one device metric.
+    private func updateAccessoryGeometry() {
+        guard let button = accessoryButton, button.bounds.height > 1 else { return }
+        // Drive the avatar's size from the bar's live content-row height (the
+        // visible glass-pill height) so it reads as an equal-height sibling on
+        // every device metric, instead of staying frozen at the seed `side`.
+        let side = barContentHeight
+        if let widthC = accessoryWidth, widthC.constant != side { widthC.constant = side }
+        if let heightC = accessoryHeight, heightC.constant != side { heightC.constant = side }
+        // Keep the avatar perfectly circular as that height resolves.
+        button.layer.cornerRadius = button.bounds.height / 2
+        NSLog(
+            "[pendi-nav][native] TabBarOverlay geometry barFrame=%@ barSafeBottom=%.1f avatar=%@",
+            NSCoder.string(for: tabBar.frame), tabBar.safeAreaInsets.bottom,
+            NSCoder.string(for: button.frame))
     }
 
     /// Side of bitmap tab icons (avatars), in points.
@@ -182,6 +247,9 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         let animated = !(tabBar.items?.isEmpty ?? true)
         tabBar.setItems(barItems, animated: animated)
         select(id: selectedId ?? ids.first)
+        NSLog(
+            "[pendi-nav][native] TabBarOverlay(separate) apply tabs=%d accessory=%@",
+            ids.count, accessoryId ?? "(none)")
     }
 
     @discardableResult

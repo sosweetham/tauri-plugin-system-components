@@ -38,6 +38,10 @@ class ComponentPropsArgs: Decodable {
     // `tabBar`.
     let items: [TabItemArgs]?
     let selectedId: String?
+    /// How the bar lays out its items: `"fill"` spreads them across the full
+    /// width, `"centered"` hugs them in the middle, `"automatic"` (default) lets
+    /// the system decide. Maps to `UITabBar.ItemPositioning`.
+    let itemPositioning: String?
 }
 
 class CreateComponentArgs: Decodable {

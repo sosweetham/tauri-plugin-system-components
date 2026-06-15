@@ -23,5 +23,12 @@ const COMMANDS: &[&str] = &[
 ];
 
 fn main() {
+    // Cargo treats this crate as fresh when only the iOS Swift sources change,
+    // so `tauri ios dev` would relink previously-compiled Swift and silently
+    // ship stale native UI. Watch the Swift package explicitly so any edit
+    // under `ios/` reliably triggers a rebuild + relink.
+    println!("cargo:rerun-if-changed=ios/Sources");
+    println!("cargo:rerun-if-changed=ios/Package.swift");
+
     tauri_plugin::Builder::new(COMMANDS).ios_path("ios").build();
 }
