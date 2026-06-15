@@ -291,11 +291,39 @@ class SystemComponentsPlugin: Plugin {
                 pres.prefersGrabberVisible = true
                 pres.preferredCornerRadius = 24
             }
+            // Drop any stale controller stored under this id that never made it
+            // on screen, then register the new one.
             self.sheets[sheetId]?.dismiss(animated: false)
             self.sheets[sheetId] = sheet
-            host.present(sheet, animated: true) {
-                sheet.presentationController?.delegate = sheet
+
+            // Sequence the presentation behind any in-flight modal transition.
+            // iOS silently drops a present that overlaps another present/dismiss,
+            // so a caller swapping one native sheet for another (dismiss A +
+            // present B in the same turn) would otherwise have to time an
+            // arbitrary delay. Instead we wait for the host to settle: ride out
+            // an animating transition via its coordinator, clear any idle modal
+            // still up, then present — attempt-capped so a stuck modal can't loop.
+            func present() {
+                host.present(sheet, animated: true) {
+                    sheet.presentationController?.delegate = sheet
+                }
             }
+            func presentWhenClear(_ attempt: Int) {
+                if attempt >= 10 {
+                    present()
+                    return
+                }
+                if let coordinator = host.transitionCoordinator {
+                    coordinator.animate(alongsideTransition: nil) { _ in
+                        presentWhenClear(attempt + 1)
+                    }
+                } else if let presented = host.presentedViewController, presented !== sheet {
+                    presented.dismiss(animated: true) { presentWhenClear(attempt + 1) }
+                } else {
+                    present()
+                }
+            }
+            presentWhenClear(0)
             invoke.resolve()
         }
     }
