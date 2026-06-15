@@ -59,7 +59,7 @@ tauri::Builder::default()
 ```
 
 ```bash
-pnpm add tauri-plugin-system-components-api
+pnpm add @sosweetham/tauri-plugin-system-components-api
 ```
 
 ## Usage
@@ -71,7 +71,7 @@ import {
   getTabBarInsets,
   isGlassSupported,
   setWindowGlass,
-} from 'tauri-plugin-system-components-api';
+} from '@sosweetham/tauri-plugin-system-components-api';
 
 try {
   // Native Liquid Glass tab bar (iOS UITabBar / macOS glass capsule).
@@ -99,7 +99,7 @@ Native overlay components:
 ```ts
 import {
   createComponent, updateComponent, removeComponent, onComponentEvent,
-} from 'tauri-plugin-system-components-api';
+} from '@sosweetham/tauri-plugin-system-components-api';
 
 await createComponent({
   id: 'wifi', kind: 'switch', anchor: 'topTrailing',
