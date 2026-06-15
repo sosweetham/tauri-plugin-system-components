@@ -5,7 +5,7 @@
     onTabSelected,
     isGlassSupported,
     setWindowGlass,
-  } from 'tauri-plugin-system-components-api';
+  } from '@sosweetham/tauri-plugin-system-components-api';
   import TabBarHtml from './lib/TabBarHtml.svelte';
   import { pg, tabs, applyTabBar } from './lib/playground.svelte.js';
   import Home from './lib/pages/Home.svelte';

@@ -11,7 +11,7 @@
     updateComponent,
     removeComponent,
     onComponentEvent,
-  } from 'tauri-plugin-system-components-api';
+  } from '@sosweetham/tauri-plugin-system-components-api';
   import {
     pg,
     applyTabBar,

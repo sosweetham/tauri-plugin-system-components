@@ -3,7 +3,7 @@
  * properties, plus the single place that (re)configures the native tab bar
  * from them.
  */
-import { configureTabBar } from 'tauri-plugin-system-components-api';
+import { configureTabBar } from '@sosweetham/tauri-plugin-system-components-api';
 import { makeAvatar } from './avatar.js';
 
 export const pg = $state({
