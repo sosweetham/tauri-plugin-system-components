@@ -198,17 +198,19 @@ final class ComponentsOverlayController: UIViewController {
         // (and a side rail fills the height), letting its children lay out
         // across the edge instead of floating a content-sized blob at the
         // center. `inset` (margin) is the gap from the docked edge and the
-        // side insets along it.
+        // side insets along it. `dx` nudges the whole bar horizontally (same
+        // shift on both edges, so the width is unchanged); `dy` adjusts the gap
+        // from the docked edge.
         case "bottom":
             constraints = [
-                container.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: margin),
-                container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -margin),
+                container.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: margin + dx),
+                container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -margin + dx),
                 container.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -(margin + dy)),
             ]
         case "top":
             constraints = [
-                container.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: margin),
-                container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -margin),
+                container.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: margin + dx),
+                container.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -margin + dx),
                 container.topAnchor.constraint(equalTo: guide.topAnchor, constant: margin + dy),
             ]
         case "leading":

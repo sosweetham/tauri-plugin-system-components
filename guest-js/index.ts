@@ -139,6 +139,12 @@ export interface ComponentProps {
   items?: TabItem[];
   /** Initially-selected tab id (defaults to the first). */
   selectedId?: string;
+  /**
+   * How the bar lays out its items (maps to `UITabBar.itemPositioning`):
+   * `fill` spreads them across the full width, `centered` hugs them in the
+   * middle, `automatic` (default) lets the system decide.
+   */
+  itemPositioning?: 'fill' | 'centered' | 'automatic';
 }
 
 export interface CreateComponentOptions {

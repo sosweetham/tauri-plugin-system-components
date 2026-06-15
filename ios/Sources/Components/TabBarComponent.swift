@@ -32,10 +32,15 @@ final class ComponentTabBar: UITabBar, UITabBarDelegate {
 
     func configure(
         items: [TabItemArgs], selectedId: String?, tint: UIColor?,
-        onSelect: @escaping (String) -> Void
+        itemPositioning: String?, onSelect: @escaping (String) -> Void
     ) {
         onSelectId = onSelect
         delegate = self
+        switch itemPositioning {
+        case "fill": self.itemPositioning = .fill
+        case "centered": self.itemPositioning = .centered
+        default: self.itemPositioning = .automatic
+        }
         ids = items.map { $0.id }
         let barItems = items.enumerated().map { index, item -> UITabBarItem in
             var image: UIImage?
@@ -55,17 +60,28 @@ final class ComponentTabBar: UITabBar, UITabBarDelegate {
         // floor for when the container instead sizes itself to content.
         invalidateIntrinsicContentSize()
         setContentHuggingPriority(.defaultLow, for: .horizontal)
-        if let selectedId, let idx = ids.firstIndex(of: selectedId), idx < barItems.count {
-            selectedItem = barItems[idx]
+        // An explicit `selectedId` (even "") selects the match or clears the
+        // selection when there is none — so a page that isn't a tab (e.g.
+        // Settings) shows no highlighted tab. Only a *missing* id defaults to the
+        // first tab.
+        if let selectedId {
+            selectedItem = ids.firstIndex(of: selectedId).flatMap {
+                $0 < barItems.count ? barItems[$0] : nil
+            }
         } else {
             selectedItem = barItems.first
         }
         applyTint(tint)
     }
 
-    /// Highlight a tab by id without emitting a selection event.
+    /// Highlight a tab by id without emitting a selection event. An unknown or
+    /// empty id clears the selection (no tab highlighted) — used when the user
+    /// is on a page that isn't one of the tabs.
     func selectTab(_ id: String) {
-        guard let idx = ids.firstIndex(of: id), let items, idx < items.count else { return }
+        guard let idx = ids.firstIndex(of: id), let items, idx < items.count else {
+            selectedItem = nil
+            return
+        }
         selectedItem = items[idx]
     }
 
@@ -91,6 +107,72 @@ final class ComponentTabBar: UITabBar, UITabBarDelegate {
         guard item.tag >= 0, item.tag < ids.count else { return }
         onSelectId?(ids[item.tag])
     }
+
+    /// Height of the visible glass pill: the tallest subview inset within the
+    /// bar (over half the bar height but shorter than the full frame). The iOS
+    /// 26 bar's full frame is taller than this — it reserves space below the
+    /// glass that a `UITabBarController`'s home-indicator inset would occupy —
+    /// so a composed layout should size to the glass, not the frame. `0` until
+    /// the bar has laid out its platter.
+    func glassHeight() -> CGFloat {
+        guard bounds.height > 1 else { return 0 }
+        var best: CGFloat = 0
+        func scan(_ v: UIView) {
+            for sub in v.subviews {
+                let h = sub.bounds.height
+                if h > bounds.height * 0.5, h < bounds.height - 0.5 { best = max(best, h) }
+                scan(sub)
+            }
+        }
+        scan(self)
+        return best
+    }
+}
+
+/// Wraps a `ComponentTabBar` so a composing container lays it out at the height
+/// of its visible glass pill, not the taller frame the bar reports. The bar
+/// still renders its full frame (glass at top); only the empty bottom reserve
+/// hangs below this wrapper. This keeps the pill at a normal height and lets a
+/// sibling control (e.g. an account button) centre on the glass via the
+/// container's own alignment — no per-view positioning.
+final class GlassSizedTabBar: UIView {
+    let bar: ComponentTabBar
+    private var heightC: NSLayoutConstraint!
+    /// iOS 26 glass-pill height (FabBar's measured value), used until the live
+    /// platter height is measured.
+    private static let defaultGlassHeight: CGFloat = 62
+
+    init(bar: ComponentTabBar) {
+        self.bar = bar
+        super.init(frame: .zero)
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(bar)
+        heightC = heightAnchor.constraint(equalToConstant: Self.defaultGlassHeight)
+        NSLayoutConstraint.activate([
+            bar.topAnchor.constraint(equalTo: topAnchor),
+            bar.leadingAnchor.constraint(equalTo: leadingAnchor),
+            bar.trailingAnchor.constraint(equalTo: trailingAnchor),
+            heightC,
+        ])
+        // Fill a wider container while a fixed-size sibling keeps its size.
+        setContentHuggingPriority(.defaultLow, for: .horizontal)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: bar.intrinsicContentSize.width, height: heightC.constant)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let glass = bar.glassHeight()
+        if glass > 0, abs(heightC.constant - glass) > 0.5 {
+            heightC.constant = glass
+            invalidateIntrinsicContentSize()
+            superview?.setNeedsLayout()
+        }
+    }
 }
 
 /// The system tab bar as a component. `props.items` are the tabs; selection
@@ -105,13 +187,16 @@ enum TabBarComponent: ComponentBuilder {
         bar.configure(
             items: props?.items ?? [],
             selectedId: props?.selectedId,
-            tint: props?.tint.flatMap(ColorUtil.from(hex:))
+            tint: props?.tint.flatMap(ColorUtil.from(hex:)),
+            itemPositioning: props?.itemPositioning
         ) { tabId in emit(id, "select", nil, nil, tabId) }
-        return bar
+        // Compose at the glass-pill height so siblings align to the pill.
+        return GlassSizedTabBar(bar: bar)
     }
 
     static func update(_ control: UIView, _ props: ComponentPropsArgs) {
-        if let bar = control as? ComponentTabBar, let selectedId = props.selectedId {
+        let bar = (control as? GlassSizedTabBar)?.bar ?? (control as? ComponentTabBar)
+        if let bar, let selectedId = props.selectedId {
             bar.selectTab(selectedId)
         }
     }
