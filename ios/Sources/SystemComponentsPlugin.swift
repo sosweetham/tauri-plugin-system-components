@@ -291,11 +291,50 @@ class SystemComponentsPlugin: Plugin {
                 pres.prefersGrabberVisible = true
                 pres.preferredCornerRadius = 24
             }
+            // Drop any stale controller stored under this id that never made it
+            // on screen, then register the new one.
             self.sheets[sheetId]?.dismiss(animated: false)
             self.sheets[sheetId] = sheet
-            host.present(sheet, animated: true) {
-                sheet.presentationController?.delegate = sheet
+
+            // Sequence the presentation behind any in-flight modal transition.
+            // iOS silently drops a present that overlaps another present/dismiss,
+            // so a caller swapping one native sheet for another (dismiss A +
+            // present B in the same turn) would otherwise have to time an
+            // arbitrary delay. Instead we wait for the host to settle: ride out
+            // an animating transition via its coordinator; if one of OUR sheets
+            // is still up, dismiss it and swap; if a modal we DON'T own is up
+            // (system alert, share sheet, permission prompt, …) leave it and
+            // present above it. Attempt-capped so a stuck modal can't loop.
+            func present(from presenter: UIViewController) {
+                presenter.present(sheet, animated: true) {
+                    sheet.presentationController?.delegate = sheet
+                }
             }
+            func presentWhenClear(_ attempt: Int) {
+                if attempt >= 10 {
+                    present(from: host)
+                    return
+                }
+                if let coordinator = host.transitionCoordinator {
+                    coordinator.animate(alongsideTransition: nil) { _ in
+                        presentWhenClear(attempt + 1)
+                    }
+                    return
+                }
+                // Walk to the topmost presented controller.
+                var top: UIViewController = host
+                while let next = top.presentedViewController { top = next }
+                if top === host {
+                    present(from: host)
+                } else if self.sheets.values.contains(where: { $0 === top }) {
+                    // Our own sheet — dismiss it, then swap in the new one.
+                    top.dismiss(animated: true) { presentWhenClear(attempt + 1) }
+                } else {
+                    // A modal we don't own — never force-dismiss it; stack above.
+                    present(from: top)
+                }
+            }
+            presentWhenClear(0)
             invoke.resolve()
         }
     }
