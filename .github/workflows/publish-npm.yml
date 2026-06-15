@@ -65,7 +65,7 @@ jobs:
           TAG="${{ github.event.release.tag_name || inputs.tag }}"
           TAG_VERSION="${TAG#v}"
           if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::package.json version ($PKG_VERSION) does not match release tag ($TAG_VERSION). Bump package.json + Cargo.toml together before tagging." >&2
+            echo "::error::package.json version ($PKG_VERSION) does not match release tag ($TAG_VERSION). Bump package.json + Cargo.toml together before tagging."
             exit 1
           fi
 
