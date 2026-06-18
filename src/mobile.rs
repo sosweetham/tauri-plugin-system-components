@@ -1,8 +1,5 @@
 use serde::de::DeserializeOwned;
-use tauri::{plugin::PluginApi, AppHandle, Runtime, WebviewWindow};
-
-#[cfg(target_os = "ios")]
-use tauri::plugin::PluginHandle;
+use tauri::{plugin::PluginApi, plugin::PluginHandle, AppHandle, Runtime, WebviewWindow};
 
 use crate::models::*;
 use crate::Error;
@@ -10,38 +7,44 @@ use crate::Error;
 #[cfg(target_os = "ios")]
 tauri::ios_plugin_binding!(init_plugin_system_components);
 
-/// Initializes the Swift plugin class registered by the host app.
+/// Initializes the Swift (iOS) or Kotlin (Android) plugin class registered by
+/// the host app.
 ///
-/// There is no Android implementation in v1 — the plugin still loads there,
-/// but every tab-bar command rejects with `Unsupported` so the web app can
-/// fall back to an HTML tab bar (same contract as desktop).
+/// iOS implements the full surface (tab bar, components, sheets). Android
+/// implements **sheets only** — the tab-bar / component commands still reject
+/// with `Unsupported`, so the web app keeps its HTML pill there and only the
+/// native bottom sheet is used.
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     #[allow(unused_variables)] api: PluginApi<R, C>,
 ) -> crate::Result<SystemComponents<R>> {
     #[cfg(target_os = "ios")]
-    {
-        let handle = api.register_ios_plugin(init_plugin_system_components)?;
-        Ok(SystemComponents { handle })
-    }
-    #[cfg(not(target_os = "ios"))]
-    {
-        Ok(SystemComponents {
-            _marker: std::marker::PhantomData,
-        })
-    }
+    let handle = api.register_ios_plugin(init_plugin_system_components)?;
+    #[cfg(target_os = "android")]
+    let handle =
+        api.register_android_plugin("com.sosweetham.systemcomponents", "SystemComponentsPlugin")?;
+    Ok(SystemComponents { handle })
 }
 
 /// Access to the system-components APIs on mobile.
 pub struct SystemComponents<R: Runtime> {
-    #[cfg(target_os = "ios")]
     handle: PluginHandle<R>,
-    #[cfg(not(target_os = "ios"))]
-    _marker: std::marker::PhantomData<R>,
 }
 
-/// Forwards a tab-bar method to the Swift plugin on iOS; rejects elsewhere.
-/// Swift method names are camelCase to match the @objc selectors.
+/// Forwards a command to the native plugin on every mobile platform (iOS +
+/// Android). Used for the sheet commands, which both platforms implement.
+macro_rules! mobile_command {
+    ($self:ident, $name:literal, $payload:expr) => {{
+        $self
+            .handle
+            .run_mobile_plugin($name, $payload)
+            .map_err(Into::into)
+    }};
+}
+
+/// Forwards a command to the Swift plugin on iOS; rejects on Android (which has
+/// no native tab bar / floating components). Swift method names are camelCase to
+/// match the `@objc` selectors.
 macro_rules! ios_command {
     ($self:ident, $name:literal, $payload:expr) => {{
         #[cfg(target_os = "ios")]
@@ -88,12 +91,14 @@ impl<R: Runtime> SystemComponents<R> {
         ios_command!(self, "getTabBarInsets", ())
     }
 
+    // Sheets are implemented on BOTH iOS (UISheetPresentationController) and
+    // Android (Material BottomSheetDialog), so they run on every mobile target.
     pub fn present_sheet(&self, options: PresentSheetOptions) -> crate::Result<()> {
-        ios_command!(self, "presentSheet", options)
+        mobile_command!(self, "presentSheet", options)
     }
 
     pub fn dismiss_sheet(&self, options: DismissSheetOptions) -> crate::Result<()> {
-        ios_command!(self, "dismissSheet", options)
+        mobile_command!(self, "dismissSheet", options)
     }
 
     pub fn create_component(&self, options: CreateComponentOptions) -> crate::Result<()> {
@@ -112,7 +117,7 @@ impl<R: Runtime> SystemComponents<R> {
         ios_command!(self, "removeComponent", options)
     }
 
-    // Window glass is a macOS (desktop) concept; these never reach Swift.
+    // Window glass is a macOS (desktop) concept; these never reach native mobile.
 
     pub fn is_glass_supported(&self) -> crate::Result<GlassSupport> {
         Ok(GlassSupport {
