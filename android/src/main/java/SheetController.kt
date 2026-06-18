@@ -110,7 +110,12 @@ internal class SheetController(
             if (values.containsKey(r.id)) continue
             when (kindOf(r)) {
                 "toggle" -> values[r.id] = if (r.on == true) "true" else "false"
-                "textfield", "datetime", "select" -> r.value?.let { values[r.id] = it }
+                "textfield", "datetime" -> r.value?.let { values[r.id] = it }
+                // The button shows the first option when nothing is chosen, so seed
+                // that value too — otherwise submit misses the field until the user
+                // re-selects it manually.
+                "select" ->
+                    (r.value ?: r.options?.firstOrNull()?.value)?.let { values[r.id] = it }
             }
         }
     }
@@ -376,6 +381,7 @@ internal class SheetController(
         private val DEFAULT_ACCENT = 0xFFE8743B.toInt() // Pendi clementine fallback
         private val DESTRUCTIVE = 0xFFE5484D.toInt()
         private val MATERIAL_THEME = com.google.android.material.R.style.Theme_Material3_DayNight
+        private const val MAX_IMAGE_BYTES = 4 * 1024 * 1024 // 4 MB — row icons are small
 
         /** SF Symbol name → a glyph for the row's leading icon (the app's set). */
         private fun glyphFor(sf: String?): String? =
@@ -429,6 +435,9 @@ internal class SheetController(
             return try {
                 val base64 = if (src.contains(",")) src.substringAfter(",") else src
                 val bytes = Base64.decode(base64, Base64.DEFAULT)
+                // Guard against an oversized payload OOMing the decode (row icons
+                // are tiny; anything bigger is malformed/hostile).
+                if (bytes.size > MAX_IMAGE_BYTES) return null
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
             } catch (e: Exception) {
                 null

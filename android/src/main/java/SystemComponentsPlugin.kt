@@ -1,6 +1,8 @@
 package com.sosweetham.systemcomponents
 
 import android.app.Activity
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -57,11 +59,34 @@ internal class DismissSheetArgs {
 @TauriPlugin
 class SystemComponentsPlugin(private val activity: Activity) : Plugin(activity) {
     private val sheets = HashMap<String, SheetController>()
+    private var cleanupHooked = false
+
+    /**
+     * Dismiss any open sheets when the host activity is destroyed — otherwise the
+     * dialogs leak their window and the controllers dangle. Registered once,
+     * lazily, the first time a sheet is presented. Clearing `sheets` before
+     * dismissing avoids the dismiss listener mutating the map mid-iteration.
+     */
+    private fun ensureCleanup() {
+        if (cleanupHooked) return
+        val owner = activity as? LifecycleOwner ?: return
+        cleanupHooked = true
+        owner.lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onDestroy(owner: LifecycleOwner) {
+                    val open = sheets.values.toList()
+                    sheets.clear()
+                    for (controller in open) runCatching { controller.dismiss() }
+                }
+            },
+        )
+    }
 
     @Command
     fun presentSheet(invoke: Invoke) {
         val args = invoke.parseArgs(PresentSheetArgs::class.java)
         activity.runOnUiThread {
+            ensureCleanup()
             try {
                 val existing = sheets[args.id]
                 if (existing != null && existing.isShowing) {

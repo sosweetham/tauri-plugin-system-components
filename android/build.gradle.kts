@@ -36,4 +36,6 @@ dependencies {
     // Material BottomSheetDialog + AppCompat theming for the native sheet.
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
+    // Lifecycle observer to dismiss sheets when the host activity is destroyed.
+    implementation("androidx.lifecycle:lifecycle-common:2.8.7")
 }
