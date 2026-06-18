@@ -30,5 +30,8 @@ fn main() {
     println!("cargo:rerun-if-changed=ios/Sources");
     println!("cargo:rerun-if-changed=ios/Package.swift");
 
-    tauri_plugin::Builder::new(COMMANDS).ios_path("ios").build();
+    tauri_plugin::Builder::new(COMMANDS)
+        .ios_path("ios")
+        .android_path("android")
+        .build();
 }

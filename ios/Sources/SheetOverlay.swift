@@ -210,14 +210,25 @@ final class SheetController: UIViewController, UITableViewDataSource, UITableVie
             cell.accessoryView = sw
 
         case .textfield:
-            cell.contentConfiguration = config
+            // Custom row layout: a caption that hugs its text + a field that fills
+            // the remaining width. An input field in `accessoryView` mis-sizes for
+            // long values/placeholders — it grows past the cell and shoves the
+            // label off the leading edge (the reported overflow).
+            let caption = UILabel()
+            caption.text = row.label
+            caption.font = .preferredFont(forTextStyle: .body)
+            caption.textColor = .label
+            caption.setContentHuggingPriority(.required, for: .horizontal)
+            caption.setContentCompressionResistancePriority(.required, for: .horizontal)
             let field = UITextField()
             field.text = values[row.id]
             field.placeholder = row.placeholder
             field.textAlignment = .right
             field.clearButtonMode = .whileEditing
-            field.translatesAutoresizingMaskIntoConstraints = false
-            field.widthAnchor.constraint(greaterThanOrEqualToConstant: 160).isActive = true
+            // The field yields width to the caption and scrolls its own text, so
+            // neither one overflows the cell.
+            field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             let id = row.id
             field.addAction(
                 UIAction { [weak self, weak field] _ in
@@ -225,7 +236,19 @@ final class SheetController: UIViewController, UITableViewDataSource, UITableVie
                     self?.values[id] = v
                     self?.onField?(id, v)
                 }, for: .editingChanged)
-            cell.accessoryView = field
+            let stack = UIStackView(arrangedSubviews: [caption, field])
+            stack.axis = .horizontal
+            stack.spacing = 12
+            stack.alignment = .center
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            cell.contentView.addSubview(stack)
+            let margins = cell.contentView.layoutMarginsGuide
+            NSLayoutConstraint.activate([
+                stack.topAnchor.constraint(equalTo: margins.topAnchor),
+                stack.bottomAnchor.constraint(equalTo: margins.bottomAnchor),
+                stack.leadingAnchor.constraint(equalTo: margins.leadingAnchor),
+                stack.trailingAnchor.constraint(equalTo: margins.trailingAnchor),
+            ])
 
         case .datetime:
             cell.contentConfiguration = config
