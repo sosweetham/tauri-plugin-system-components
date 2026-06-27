@@ -44,6 +44,26 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     private var accessoryButton: UIButton?
     private(set) var accessoryId: String?
 
+    /// Latest tabs + selection, retained so the bar can be rebuilt when the
+    /// accessory changes. The classic iOS < 26 bar has no floating side button,
+    /// so the account folds in as a trailing tab — `rebuild()` appends it from
+    /// these plus `accessoryImage`/`accessorySymbol`.
+    private var tabItems: [TabItemArgs] = []
+    private var storedSelectedId: String?
+    private var accessoryImage: UIImage?
+    private var accessorySymbol: String?
+
+    /// True unless this is an iOS 26 SDK build running on iOS 26+. Only there
+    /// does the system tab bar render as a floating Liquid Glass pill; otherwise
+    /// it's the classic full-width bottom bar, so we render it edge-to-edge and
+    /// fold the account into a trailing tab instead of a floating side button.
+    private var usesClassicBar: Bool {
+        #if compiler(>=6.2)
+            if #available(iOS 26.0, *) { return false }
+        #endif
+        return true
+    }
+
     /// The accessory's size and vertical placement are derived from the bar's
     /// live geometry (see `updateAccessoryGeometry`), so they are held here and
     /// refreshed on every layout pass rather than frozen at mount time.
@@ -115,6 +135,10 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     /// glass disc. Taps report through `onSelect(id)` — the same channel as
     /// tabs — so the web app opens its account menu.
     func setAccessory(id: String?, image: UIImage?, sfSymbol: String?) {
+        accessoryId = id
+        accessoryImage = image
+        accessorySymbol = sfSymbol
+        // Tear down any existing floating (glass-era) button + bar shrink.
         trailingToAccessory?.isActive = false
         trailingToAccessory = nil
         accessoryButton?.removeFromSuperview()
@@ -123,8 +147,14 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
         accessoryHeight = nil
         accessoryCenterY = nil
         (view as? PassthroughView)?.accessory = nil
-        accessoryId = id
         trailingFull.isActive = true
+
+        // Classic iOS < 26 bar: no floating side button — the account rides as a
+        // trailing tab (rebuilt here) and the bar stays full-width.
+        if usesClassicBar {
+            rebuild()
+            return
+        }
         guard let id else { return }
 
         let side = Self.accessorySide
@@ -228,8 +258,18 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     private static let imageSide: CGFloat = 26
 
     func apply(items: [TabItemArgs], selectedId: String?) {
-        ids = items.map { $0.id }
-        let barItems = items.enumerated().map { index, item -> UITabBarItem in
+        tabItems = items
+        storedSelectedId = selectedId ?? items.first?.id
+        rebuild()
+    }
+
+    /// (Re)build the bar's items from the retained `tabItems`. On the classic
+    /// iOS < 26 bar the account accessory is appended as a trailing tab (there's
+    /// no floating side button there); `ids` stays aligned with the items so
+    /// selection, tap mapping and badges cover the account entry too.
+    private func rebuild() {
+        ids = tabItems.map { $0.id }
+        var barItems = tabItems.enumerated().map { index, item -> UITabBarItem in
             var image: UIImage?
             if let b64 = item.image, let decoded = ImageUtil.decode(b64) {
                 image = ImageUtil.icon(
@@ -244,12 +284,21 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
             barItem.badgeValue = item.badge
             return barItem
         }
+        // Classic bar (iOS < 26): fold the account in as a trailing tab. Use a
+        // line glyph (not the filled avatar photo) so it matches the other
+        // system-icon tabs instead of reading as a heavy circle, and the system
+        // tints it with the bar accent like the rest.
+        if usesClassicBar, let accId = accessoryId {
+            let image = UIImage(systemName: accessorySymbol ?? "person.crop.circle")
+            barItems.append(UITabBarItem(title: "Account", image: image, tag: barItems.count))
+            ids.append(accId)
+        }
         let animated = !(tabBar.items?.isEmpty ?? true)
         tabBar.setItems(barItems, animated: animated)
-        select(id: selectedId ?? ids.first)
+        select(id: storedSelectedId ?? ids.first)
         NSLog(
-            "[pendi-nav][native] TabBarOverlay(separate) apply tabs=%d accessory=%@",
-            ids.count, accessoryId ?? "(none)")
+            "[pendi-nav][native] TabBarOverlay apply tabs=%d classic=%@ accessory=%@",
+            ids.count, usesClassicBar ? "yes" : "no", accessoryId ?? "(none)")
     }
 
     @discardableResult
