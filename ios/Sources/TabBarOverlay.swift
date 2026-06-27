@@ -114,15 +114,24 @@ final class TabBarOverlayController: UIViewController, UITabBarDelegate {
     /// pill, so the accent has to ride on the appearance's selected colors.
     func applyTint(_ color: UIColor?) {
         tabBar.tintColor = color
-        guard let color else { return }
         let appearance = tabBar.standardAppearance
-        for items in [
-            appearance.stackedLayoutAppearance,
-            appearance.inlineLayoutAppearance,
-            appearance.compactInlineLayoutAppearance,
-        ] {
-            items.selected.iconColor = color
-            items.selected.titleTextAttributes = [.foregroundColor: color]
+        // Classic iOS < 26 bar: a standalone UITabBar renders transparent at the
+        // scroll edge, so on a dark page the icons look like they float with no
+        // bar and the tap target is unclear. Give it the standard translucent
+        // system background so it reads as a normal full-width tab bar. On iOS 26
+        // we leave the appearance untouched so the Liquid Glass background stays.
+        if usesClassicBar {
+            appearance.configureWithDefaultBackground()
+        }
+        if let color {
+            for items in [
+                appearance.stackedLayoutAppearance,
+                appearance.inlineLayoutAppearance,
+                appearance.compactInlineLayoutAppearance,
+            ] {
+                items.selected.iconColor = color
+                items.selected.titleTextAttributes = [.foregroundColor: color]
+            }
         }
         tabBar.standardAppearance = appearance
         if #available(iOS 15.0, *) {

@@ -1,6 +1,6 @@
 {
   "name": "@sosweetham/tauri-plugin-system-components-api",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Native system UI components for Tauri 2 — native iOS tab bar over the webview, native controls, and glass window backgrounds on macOS/iOS.",
   "license": "MIT",
   "author": "SoSweetHam <sosweetham@gmail.com>",
