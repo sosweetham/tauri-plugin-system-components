@@ -117,13 +117,28 @@ impl<R: Runtime> SystemComponents<R> {
         ios_command!(self, "removeComponent", options)
     }
 
-    // Window glass is a macOS (desktop) concept; these never reach native mobile.
+    // `set_window_glass` / `clear_window_glass` are a macOS (desktop) concept and
+    // never reach native mobile. `is_glass_supported`, though, is meaningful on
+    // iOS: it reports whether the native Liquid Glass tab bar / components render
+    // as real glass (iOS 26 SDK + iOS 26 runtime) or fall back to a material blur.
+    // Callers use it to decide between the native glass bar and the HTML pill —
+    // the WebKit user-agent freezes the OS version, so it can't be used for this.
 
     pub fn is_glass_supported(&self) -> crate::Result<GlassSupport> {
-        Ok(GlassSupport {
-            supported: false,
-            fallback: false,
-        })
+        #[cfg(target_os = "ios")]
+        {
+            self.handle
+                .run_mobile_plugin("isGlassSupported", ())
+                .map_err(Into::into)
+        }
+        // Android has no native glass bar; keep the safe default.
+        #[cfg(not(target_os = "ios"))]
+        {
+            Ok(GlassSupport {
+                supported: false,
+                fallback: false,
+            })
+        }
     }
 
     pub fn set_window_glass(
