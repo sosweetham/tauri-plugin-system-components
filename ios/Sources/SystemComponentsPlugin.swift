@@ -231,6 +231,18 @@ class SystemComponentsPlugin: Plugin {
         }
     }
 
+    /// Whether real Liquid Glass (`UIGlassEffect`) is available: an iOS-26 SDK
+    /// build (`compiler(>=6.2)`) running on iOS 26+. Below that the glass
+    /// components fall back to a material blur, so callers gate the native
+    /// glass tab bar on this rather than sniffing the (WebKit-frozen) UA string.
+    @objc public func isGlassSupported(_ invoke: Invoke) {
+        var supported = false
+        #if compiler(>=6.2)
+            if #available(iOS 26.0, *) { supported = true }
+        #endif
+        invoke.resolve(["supported": supported, "fallback": !supported])
+    }
+
     @objc public func presentSheet(_ invoke: Invoke) throws {
         let args = try invoke.parseArgs(PresentSheetArgs.self)
         DispatchQueue.main.async { [weak self] in
