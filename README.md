@@ -143,6 +143,15 @@ on macOS — so app code is identical everywhere.
   lives on `UITabBarController`, not the bare `UITabBar`; planned for a later
   iteration along with more glass components (switches, etc.).
 - Keyboard does not auto-hide the bar (standard for floating bars).
+- **iOS: the plugin repairs the keyboard's layout-viewport shrink.** Focusing a
+  text field makes WebKit take the input accessory bar's height off the
+  webview's *layout* viewport — `window.innerHeight`, `100dvh`, and the
+  containing block of every `position: fixed` element — and iOS often never
+  gives it back once the keyboard leaves, stranding bottom-anchored UI 44–53pt
+  above the screen for the life of the web view (a page reload does not clear
+  it). Merely loading the plugin installs a guard that restores the viewport
+  once the keyboard is gone; there is no API and nothing to opt into. It costs
+  one hidden 0.5pt resize of the webview per keyboard dismissal.
 
 ## Example app
 

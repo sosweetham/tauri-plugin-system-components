@@ -94,9 +94,13 @@ class SystemComponentsPlugin: Plugin {
     private var componentsOverlay: ComponentsOverlayController?
     private var webView: WKWebView?
     private var sheets: [String: SheetController] = [:]
+    /// Restores the layout viewport WebKit shrinks for the input accessory bar
+    /// and then forgets to give back. See KeyboardViewportGuard.
+    private var keyboardGuard: KeyboardViewportGuard?
 
     @objc public override func load(webview: WKWebView) {
         self.webView = webview
+        self.keyboardGuard = KeyboardViewportGuard(webView: webview)
     }
 
     @objc public func configureTabBar(_ invoke: Invoke) throws {
