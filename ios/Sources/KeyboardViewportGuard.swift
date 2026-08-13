@@ -32,20 +32,33 @@ import WebKit
 final class KeyboardViewportGuard {
     private weak var webView: WKWebView?
     private var observers: [NSObjectProtocol] = []
-    /// Set while a restore is queued, so the resize our own nudge provokes
-    /// cannot re-enter through another notification.
-    private var pending = false
+    /// The queued restore, held so a keyboard that comes back can cancel it.
+    private var queued: DispatchWorkItem?
+    /// Whether a keyboard or accessory bar is currently on screen. The restore
+    /// is only ever correct while this is false.
+    private var keyboardUp = false
 
     init(webView: WKWebView) {
         self.webView = webView
         let center = NotificationCenter.default
+
+        // A keyboard on its way back in: whatever we had queued is now wrong,
+        // because the short viewport is about to be the truth again.
+        observers.append(
+            center.addObserver(
+                forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main
+            ) { [weak self] _ in self?.keyboardUp = true; self?.cancelRestore() }
+        )
 
         // `didHide`, not `willHide`: the shrink outlives the dismissal
         // animation, so nudging before it ends is simply undone by its end.
         observers.append(
             center.addObserver(
                 forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main
-            ) { [weak self] _ in self?.scheduleRestore() }
+            ) { [weak self] _ in
+                self?.keyboardUp = false
+                self?.scheduleRestore()
+            }
         )
 
         // With a hardware keyboard attached, only the accessory bar appears and
@@ -61,7 +74,13 @@ final class KeyboardViewportGuard {
                 guard let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey]
                     as? NSValue
                 else { return }
-                if self.isOffScreen(end.cgRectValue) { self.scheduleRestore() }
+                if self.isOffScreen(end.cgRectValue) {
+                    self.keyboardUp = false
+                    self.scheduleRestore()
+                } else {
+                    self.keyboardUp = true
+                    self.cancelRestore()
+                }
             }
         )
     }
@@ -80,16 +99,27 @@ final class KeyboardViewportGuard {
         return window.convert(frameInScreen, from: nil).minY >= window.bounds.maxY - 1
     }
 
+    private func cancelRestore() {
+        queued?.cancel()
+        queued = nil
+    }
+
     /// Coalesce the burst of notifications one dismissal emits, and let UIKit
-    /// finish its own layout pass before we touch the geometry.
+    /// finish its own layout pass before we touch the geometry. The keyboard can
+    /// come back inside that window — cancelled above when it does, and checked
+    /// again here in case the work item was already dequeued, because resizing
+    /// the webview under a keyboard that is up would republish a height the
+    /// keyboard is covering.
     private func scheduleRestore() {
-        guard !pending else { return }
-        pending = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        guard queued == nil else { return }
+        let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            self.pending = false
+            self.queued = nil
+            guard !self.keyboardUp else { return }
             self.restore()
         }
+        queued = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: work)
     }
 
     private func restore() {
