@@ -61,6 +61,20 @@ final class AdaptiveTabBarController: UIViewController, UITabBarControllerDelega
         tabs.onLayout = { [weak self] in self?.publishInsets() }
     }
 
+    func mount(on host: UIViewController) {
+        host.addChild(self)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        host.view.addSubview(view)
+        // Frame autoresizing can retain the old display geometry when Duo unfolds.
+        NSLayoutConstraint.activate([
+            view.leadingAnchor.constraint(equalTo: host.view.leadingAnchor),
+            view.trailingAnchor.constraint(equalTo: host.view.trailingAnchor),
+            view.topAnchor.constraint(equalTo: host.view.topAnchor),
+            view.bottomAnchor.constraint(equalTo: host.view.bottomAnchor),
+        ])
+        didMove(toParent: host)
+    }
+
     func apply(_ args: ConfigureTabBarArgs, webView: WKWebView?) {
         loadViewIfNeeded()
         scrollView = webView?.scrollView

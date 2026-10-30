@@ -443,11 +443,7 @@ class SystemComponentsPlugin: Plugin {
             for (edge, value) in insets { data[edge] = value }
             self?.trigger("tabBarLayoutChanged", data: data)
         }
-        host.addChild(controller)
-        controller.view.frame = host.view.bounds
-        controller.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        host.view.addSubview(controller.view)
-        controller.didMove(toParent: host)
+        controller.mount(on: host)
         adaptive = controller
         return controller
     }

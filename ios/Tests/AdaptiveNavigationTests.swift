@@ -42,4 +42,23 @@ final class AdaptiveNavigationTests: XCTestCase {
         content.addSubview(button)
         XCTAssertTrue(view.hitTest(CGPoint(x: 20, y: 20), with: nil) === button)
     }
+    @MainActor func testContainerTracksFoldedAndUnfoldedRotation() throws {
+        let host = UIViewController()
+        host.view.frame = CGRect(x: 0, y: 0, width: 466, height: 678)
+        let controller = AdaptiveTabBarController()
+        controller.mount(on: host)
+        let args = try JSONDecoder().decode(ConfigureTabBarArgs.self, from: Data("""
+        {"layout":"adaptive","items":[{"id":"library","title":"Library","sfSymbol":"books.vertical"}]}
+        """.utf8))
+        controller.apply(args, webView: nil)
+        for size in [CGSize(width: 466, height: 678), CGSize(width: 669, height: 951), CGSize(width: 951, height: 669), CGSize(width: 466, height: 678)] {
+            host.view.bounds.size = size
+            host.view.setNeedsLayout()
+            host.view.layoutIfNeeded()
+            XCTAssertEqual(controller.view.frame, host.view.bounds)
+            XCTAssertEqual(controller.tabs.view.frame, controller.view.bounds)
+            XCTAssertFalse(controller.view.isHidden)
+        }
+    }
+
 }
