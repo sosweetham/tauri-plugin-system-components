@@ -1,12 +1,12 @@
 {
   "name": "@sosweetham/tauri-plugin-system-components-api",
   "version": "0.1.8",
-  "description": "Native system UI components for Tauri 2 — native iOS tab bar over the webview, native controls, and glass window backgrounds on macOS/iOS.",
+  "description": "Native system UI components for Tauri 2 \u2014 native iOS tab bar over the webview, native controls, and glass window backgrounds on macOS/iOS.",
   "license": "MIT",
   "author": "SoSweetHam <sosweetham@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sosweetham/tauri-plugin-system-components.git"
+    "url": "git+https://github.com/itsthisjustin/tauri-plugin-system-components.git"
   },
   "type": "module",
   "types": "./dist-js/index.d.ts",
@@ -39,7 +39,7 @@
   "scripts": {
     "build": "rollup -c",
     "check-types": "tsc --noEmit",
-    "prepack": "pnpm build"
+    "prepare": "npm run build"
   },
   "dependencies": {
     "@tauri-apps/api": ">=2.0.0"

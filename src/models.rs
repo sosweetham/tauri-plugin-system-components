@@ -39,7 +39,24 @@ pub struct AccessoryItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub enum TabBarLayout {
+    Overlay,
+    Adaptive,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NavigationPlacement {
+    Leading,
+    Trailing,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigureTabBarOptions {
+    /// Opt into UIKit-managed tab/navigation placement on iOS.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout: Option<TabBarLayout>,
     pub items: Vec<TabItem>,
     /// Tab to select initially; defaults to the first item.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -266,6 +283,9 @@ pub struct ComponentProps {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateComponentOptions {
+    /// Place a button in the adaptive iOS navigation bar.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub navigation: Option<NavigationPlacement>,
     /// Stable identifier, reported back in component events.
     pub id: String,
     pub kind: ComponentKind,

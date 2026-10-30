@@ -45,6 +45,7 @@ class ComponentPropsArgs: Decodable {
 }
 
 class CreateComponentArgs: Decodable {
+    let navigation: String?
     let id: String
     let kind: String
     let props: ComponentPropsArgs?
