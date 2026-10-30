@@ -31,5 +31,9 @@ let package = Package(
                 .byName(name: "Tauri"),
             ],
             path: "Sources"),
+        .testTarget(
+            name: "AdaptiveNavigationTests",
+            dependencies: ["tauri-plugin-system-components"],
+            path: "Tests"),
     ]
 )

@@ -128,6 +128,74 @@ Other commands: `removeTabBar`, `showTabBar`, `hideTabBar`,
 plugin event channel on iOS and the `system-components://tab-selected` Tauri event
 on macOS — so app code is identical everywhere.
 
+## Adaptive iOS navigation (including iPhone Duo)
+
+This fork adds an opt-in UIKit-managed layout. The default `overlay` layout is
+unchanged. Use `layout: 'adaptive'` to let `UITabBarController` and
+`UINavigationController` place tabs and actions: standard labeled tabs on regular
+iPhones, and the system vertical rail alongside the status area on Duo. Placement
+follows UIKit traits, rotation, and display changes; no device-model checks,
+forced size classes, or hidden tab titles are used.
+
+```ts
+import {
+  configureTabBar, createComponent, onComponentEvent, onTabBarLayoutChanged,
+} from '@sosweetham/tauri-plugin-system-components-api';
+
+// Register before configuration so the first layout is delivered too.
+const layout = await onTabBarLayoutChanged((insets) => {
+  for (const edge of ['top', 'right', 'bottom', 'left'] as const) {
+    document.documentElement.style.setProperty(`--native-${edge}`, `${insets[edge]}px`);
+  }
+});
+await configureTabBar({
+  layout: 'adaptive',
+  items: [
+    { id: 'library', title: 'Library', sfSymbol: 'books.vertical' },
+    { id: 'browse', title: 'Browse', sfSymbol: 'safari' },
+  ],
+  selectedId: 'library',
+});
+const actions = await onComponentEvent(({ id, event }) => {
+  if (id === 'back' && event === 'click') history.back();
+});
+await createComponent({
+  id: 'back', kind: 'button', navigation: 'leading',
+  props: { label: 'Back', sfSymbol: 'chevron.backward' },
+});
+// removeComponent('back') when returning to the root page.
+// Unregister `layout` and `actions` when tearing down navigation.
+```
+
+Reserve the reported insets on the page instead of keeping a fixed bottom-tab
+padding. They **include** the status/safe area; combine them with CSS using
+`max(env(safe-area-inset-right), var(--native-right, 0px))`, and the equivalent
+for each other edge, rather than adding them. Updates arrive after layout,
+including rotation and navigation button changes. `getTabBarInsets().bottom`
+remains available; side-rail layouts require the four-edge event.
+
+Navigation buttons support `navigation: 'leading' | 'trailing'`, with the same
+click events, update/remove commands, symbols, bitmap images, tint, and accessible
+labels as other components. UIKit controls their placement. The SPA still owns
+route history and the back callback; this does not synthesize a native page stack
+or native interactive-pop transitions. The overlay passes content touches through
+to the existing webview, preserving its scrolling and back/forward gestures.
+
+Adaptive mode supports one to five uniquely identified tabs. The legacy floating
+`accessory` is rejected in this mode; use a navigation button for account/actions.
+Show/hide commands hide the adaptive chrome together (tabs and navigation actions),
+so HTML modal sheets can cover the screen. Other component types remain ordinary
+overlays. The new layout is iOS-only; macOS keeps its existing tab implementation.
+The Duo vertical-bar presentation requires the iOS 27.1 SDK/runtime or later;
+UIKit provides its regular navigation on earlier devices.
+
+Native checks (after Tauri has populated `.tauri/tauri-api`):
+
+```sh
+cd ios
+xcodebuild test -scheme tauri-plugin-system-components -destination 'platform=iOS Simulator,id=YOUR_SIMULATOR_ID'
+```
+
 ## Requirements & caveats
 
 - **Seeing glass on iOS requires building with Xcode 26** (iOS 26 SDK) and an

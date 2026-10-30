@@ -36,6 +36,7 @@ class AccessoryArgs: Decodable {
 }
 
 class ConfigureTabBarArgs: Decodable {
+    let layout: String?
     let items: [TabItemArgs]
     let selectedId: String?
     /// Hex accent color — applied to the selected item via the bar appearance.
@@ -91,6 +92,7 @@ class DismissSheetArgs: Decodable {
 
 class SystemComponentsPlugin: Plugin {
     private var overlay: TabBarOverlayController?
+    private var adaptive: AdaptiveTabBarController?
     private var componentsOverlay: ComponentsOverlayController?
     private var webView: WKWebView?
     private var sheets: [String: SheetController] = [:]
@@ -109,12 +111,28 @@ class SystemComponentsPlugin: Plugin {
             invoke.reject("configureTabBar requires at least one item")
             return
         }
+        guard args.layout != "adaptive" || (args.items.count <= 5 && args.accessory == nil) else {
+            invoke.reject("adaptive layout supports up to five tabs; use navigation buttons instead of accessory")
+            return
+        }
+        guard Set(args.items.map(\.id)).count == args.items.count else {
+            invoke.reject("tab ids must be unique")
+            return
+        }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             guard let host = self.manager.viewController else {
                 invoke.reject("host view controller unavailable")
                 return
             }
+            if args.layout == "adaptive" {
+                if let overlay = self.overlay { self.unmount(overlay); self.overlay = nil }
+                let controller = self.adaptive ?? self.mountAdaptive(on: host)
+                controller.apply(args, webView: self.webView)
+                invoke.resolve()
+                return
+            }
+            if let adaptive = self.adaptive { self.unmount(adaptive); self.adaptive = nil }
             // Idempotent: reconfiguring updates the mounted bar in place.
             let overlay = self.overlay ?? self.mount(on: host)
             overlay.apply(items: args.items, selectedId: args.selectedId)
@@ -134,6 +152,7 @@ class SystemComponentsPlugin: Plugin {
 
     @objc public func removeTabBar(_ invoke: Invoke) {
         DispatchQueue.main.async { [weak self] in
+            if let adaptive = self?.adaptive { self?.unmount(adaptive); self?.adaptive = nil }
             if let overlay = self?.overlay {
                 overlay.willMove(toParent: nil)
                 overlay.view.removeFromSuperview()
@@ -155,6 +174,11 @@ class SystemComponentsPlugin: Plugin {
     @objc public func selectTab(_ invoke: Invoke) throws {
         let args = try invoke.parseArgs(SelectTabArgs.self)
         DispatchQueue.main.async { [weak self] in
+            if let adaptive = self?.adaptive {
+                if adaptive.select(id: args.id) { invoke.resolve() }
+                else { invoke.reject("unknown tab id: \(args.id)") }
+                return
+            }
             guard let overlay = self?.overlay else {
                 invoke.reject("tab bar is not configured")
                 return
@@ -170,6 +194,11 @@ class SystemComponentsPlugin: Plugin {
     @objc public func setBadge(_ invoke: Invoke) throws {
         let args = try invoke.parseArgs(SetBadgeArgs.self)
         DispatchQueue.main.async { [weak self] in
+            if let adaptive = self?.adaptive {
+                if adaptive.setBadge(id: args.id, value: args.value) { invoke.resolve() }
+                else { invoke.reject("unknown tab id: \(args.id)") }
+                return
+            }
             guard let overlay = self?.overlay else {
                 invoke.reject("tab bar is not configured")
                 return
@@ -190,6 +219,17 @@ class SystemComponentsPlugin: Plugin {
                 invoke.reject("host view controller unavailable")
                 return
             }
+            if let placement = args.navigation {
+                guard args.kind == "button", ["leading", "trailing"].contains(placement), let adaptive = self.adaptive else {
+                    invoke.reject("navigation placement requires a button and adaptive tab layout")
+                    return
+                }
+                self.componentsOverlay?.remove(id: args.id)
+                adaptive.createButton(args)
+                invoke.resolve()
+                return
+            }
+            self.adaptive?.removeButton(id: args.id)
             let overlay = self.componentsOverlay ?? self.mountComponents(on: host)
             overlay.create(args, webView: self.webView)
             invoke.resolve()
@@ -199,6 +239,7 @@ class SystemComponentsPlugin: Plugin {
     @objc public func updateComponent(_ invoke: Invoke) throws {
         let args = try invoke.parseArgs(UpdateComponentArgs.self)
         DispatchQueue.main.async { [weak self] in
+            if self?.adaptive?.updateButton(id: args.id, props: args.props) == true { invoke.resolve(); return }
             guard let overlay = self?.componentsOverlay, overlay.update(id: args.id, props: args.props)
             else {
                 invoke.reject("unknown component: \(args.id)")
@@ -211,9 +252,9 @@ class SystemComponentsPlugin: Plugin {
     @objc public func updateComponents(_ invoke: Invoke) throws {
         let args = try invoke.parseArgs(UpdateComponentsArgs.self)
         DispatchQueue.main.async { [weak self] in
-            if let overlay = self?.componentsOverlay {
-                for item in args.components {
-                    _ = overlay.update(id: item.id, props: item.props)
+            for item in args.components {
+                if self?.adaptive?.updateButton(id: item.id, props: item.props) != true {
+                    _ = self?.componentsOverlay?.update(id: item.id, props: item.props)
                 }
             }
             invoke.resolve()
@@ -223,6 +264,7 @@ class SystemComponentsPlugin: Plugin {
     @objc public func removeComponent(_ invoke: Invoke) throws {
         let args = try invoke.parseArgs(RemoveComponentArgs.self)
         DispatchQueue.main.async { [weak self] in
+            self?.adaptive?.removeButton(id: args.id)
             self?.componentsOverlay?.remove(id: args.id)
             invoke.resolve()
         }
@@ -230,7 +272,7 @@ class SystemComponentsPlugin: Plugin {
 
     @objc public func getTabBarInsets(_ invoke: Invoke) {
         DispatchQueue.main.async { [weak self] in
-            let bottom = self?.overlay?.bottomInset ?? 0
+            let bottom = self?.adaptive?.bottomInset ?? self?.overlay?.bottomInset ?? 0
             invoke.resolve(["bottom": Double(bottom)])
         }
     }
@@ -368,6 +410,11 @@ class SystemComponentsPlugin: Plugin {
 
     private func setHidden(_ hidden: Bool, _ invoke: Invoke) {
         DispatchQueue.main.async { [weak self] in
+            if let adaptive = self?.adaptive {
+                adaptive.view.isHidden = hidden
+                invoke.resolve()
+                return
+            }
             guard let overlay = self?.overlay else {
                 invoke.reject("tab bar is not configured")
                 return
@@ -379,6 +426,30 @@ class SystemComponentsPlugin: Plugin {
             }
             invoke.resolve()
         }
+    }
+
+    private func unmount(_ controller: UIViewController) {
+        controller.willMove(toParent: nil)
+        controller.view.removeFromSuperview()
+        controller.removeFromParent()
+    }
+
+    private func mountAdaptive(on host: UIViewController) -> AdaptiveTabBarController {
+        let controller = AdaptiveTabBarController()
+        controller.onSelect = { [weak self] id in self?.trigger("tabSelected", data: ["id": id]) }
+        controller.onClick = { [weak self] id in self?.trigger("componentEvent", data: ["id": id, "event": "click"]) }
+        controller.onLayout = { [weak self] insets in
+            var data: JSObject = [:]
+            for (edge, value) in insets { data[edge] = value }
+            self?.trigger("tabBarLayoutChanged", data: data)
+        }
+        host.addChild(controller)
+        controller.view.frame = host.view.bounds
+        controller.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        host.view.addSubview(controller.view)
+        controller.didMove(toParent: host)
+        adaptive = controller
+        return controller
     }
 
     /// Adds the overlay as a child VC of the webview's host VC. The overlay's

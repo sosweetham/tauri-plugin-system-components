@@ -35,6 +35,10 @@ export interface TabBarAccessory {
 }
 
 export interface ConfigureTabBarOptions {
+  /** iOS: UIKit-managed tabs and navigation, including Duo's vertical rail.
+   * Defaults to the legacy overlay. Adaptive mode supports up to five tabs;
+   * use navigation buttons instead of `accessory`. Ignored on macOS. */
+  layout?: 'overlay' | 'adaptive';
   items: TabItem[];
   /** Tab to select initially; defaults to the first item. */
   selectedId?: string;
@@ -148,6 +152,10 @@ export interface ComponentProps {
 }
 
 export interface CreateComponentOptions {
+  /** iOS adaptive layout only: place a button in the system navigation bar.
+   * Set props.label for VoiceOver; an image/symbol hides the visible title.
+   * Clicks use the usual component event. Anchor/dx/dy are ignored. */
+  navigation?: 'leading' | 'trailing';
   /** Stable identifier, reported back in component events. */
   id: string;
   kind: ComponentKind;
@@ -561,4 +569,13 @@ export async function setWindowGlass(
 /** Removes the glass view installed by {@link setWindowGlass}. macOS only. */
 export async function clearWindowGlass(): Promise<void> {
   await invoke('plugin:system-components|clear_window_glass');
+}
+
+/** Insets occupied by UIKit navigation, including the system status area.
+ * Subscribe before configuring adaptive tabs; updates follow layout/rotation.
+ * Use max(inset, env(safe-area-inset-*)), not their sum. iOS only. */
+export async function onTabBarLayoutChanged(
+  handler: (insets: { top: number; right: number; bottom: number; left: number }) => void,
+) {
+  return addPluginListener('system-components', 'tabBarLayoutChanged', handler);
 }
