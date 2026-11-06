@@ -259,7 +259,9 @@ pub struct ComponentProps {
     pub sticky_top: Option<f64>,
     /// `document` anchor: bottom edge of the containing block, in document
     /// CSS points. Like CSS sticky, the view stops sticking once its bottom
-    /// reaches it. Omit to stick indefinitely.
+    /// reaches it. Requires `sticky_top` (ignored without it); omit to stick
+    /// indefinitely. An update can change it but not remove it — recreate the
+    /// component instead.
     pub sticky_bottom: Option<f64>,
     /// `segmented`: fill and text colors (`#RRGGBB[AA]`) of the item `badge` pill.
     pub badge_color: Option<String>,

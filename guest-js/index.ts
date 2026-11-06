@@ -141,7 +141,9 @@ export interface ComponentProps {
   stickyTop?: number;
   /** `document` anchor: bottom edge of the containing block, in page CSS
    * points. Like CSS sticky, the view stops sticking once its bottom reaches
-   * it. Omit to stick indefinitely. */
+   * it. Requires `stickyTop` (ignored without it); omit to stick
+   * indefinitely. An update can change it but not remove it — recreate the
+   * component instead. */
   stickyBottom?: number;
   /** `segmented`: hex fill and text colors of the item `badge` pill. */
   badgeColor?: string;
