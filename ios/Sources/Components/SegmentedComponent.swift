@@ -8,9 +8,12 @@
 
 import UIKit
 
-/// UISegmentedControl. `props.items` are the segments (`title`, optional
-/// `sfSymbol`, optional `badge`); a tap emits `select` with the item id as
-/// `detail`. `props.selectedId` (via update) changes the selection silently.
+/// UISegmentedControl. `props.items` are the segments: `title`, or an
+/// `sfSymbol` when `title` is empty (a segment holds a title *or* an image,
+/// never both; VoiceOver reads the item `id` for symbol-only segments), plus an
+/// optional `badge`. A tap emits `select` with the item id as `detail`. An
+/// update with `items` rebuilds the segments; `selectedId` changes the
+/// selection silently.
 /// A `badge` renders as a colored pill after the title (`badgeColor` /
 /// `badgeTextColor`): segments only hold a title *or* an image, so a badged
 /// segment is drawn into an image with the control's own font.
@@ -37,12 +40,14 @@ final class ComponentSegmentedControl: UISegmentedControl {
             if let badge = item.badge, !badge.isEmpty {
                 insertSegment(with: badgedTitle(item.title, badge), at: index, animated: false)
             } else if item.title.isEmpty, let symbol = item.sfSymbol, let image = UIImage(systemName: symbol) {
+                image.accessibilityLabel = item.id
                 insertSegment(with: image, at: index, animated: false)
             } else {
                 insertSegment(withTitle: item.title, at: index, animated: false)
             }
         }
-        selectedSegmentIndex = selected
+        // Fewer segments after a rebuild: the old index may no longer exist.
+        selectedSegmentIndex = selected < numberOfSegments ? selected : UISegmentedControl.noSegment
     }
 
     /// "Wednesday (3)": the title, then the badge in a colored pill.
@@ -142,8 +147,20 @@ enum SegmentedComponent: ComponentBuilder {
     }
 
     static func update(_ control: UIView, _ props: ComponentPropsArgs) {
-        if let segmented = segmented(in: control), let selectedId = props.selectedId {
-            segmented.select(selectedId)
+        guard let segmented = segmented(in: control) else { return }
+        if let color = props.badgeColor.flatMap(ColorUtil.from(hex:)) { segmented.badgeColor = color }
+        if let color = props.badgeTextColor.flatMap(ColorUtil.from(hex:)) { segmented.badgeTextColor = color }
+        if let items = props.items {
+            // Keep the selection by id across a rebuild (indices may shift).
+            let current = segmented.selectedSegmentIndex >= 0 && segmented.selectedSegmentIndex < segmented.ids.count
+                ? segmented.ids[segmented.selectedSegmentIndex] : nil
+            segmented.items = items
+            segmented.ids = items.map { $0.id }
+            segmented.build()
+            segmented.select(props.selectedId ?? current)
+        } else if props.badgeColor != nil || props.badgeTextColor != nil {
+            segmented.build()
         }
+        if let selectedId = props.selectedId { segmented.select(selectedId) }
     }
 }

@@ -31,6 +31,9 @@ class ComponentPropsArgs: Decodable {
     /// `document` anchor: stick this many CSS points below the top of the
     /// visible area, like `position: sticky; top: …`.
     let stickyTop: Double?
+    /// `document` anchor: bottom edge of the containing block (document CSS
+    /// points) — the view stops sticking when its bottom reaches it.
+    let stickyBottom: Double?
     /// `segmented`: fill and text colors of the item `badge` pill.
     let badgeColor: String?
     let badgeTextColor: String?

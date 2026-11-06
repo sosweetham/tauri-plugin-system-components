@@ -127,16 +127,22 @@ export interface ComponentProps {
   width?: number;
   height?: number;
   /**
-   * Top-left position in CSS points, for `absolute` placement. Also
-   * accepted by {@link updateComponent} to move/resize (DOM scroll sync).
+   * Top-left position in CSS points: from the window's top-left for
+   * `absolute`, from the top-left of the page for `document`. Also accepted
+   * by {@link updateComponent} to move/resize.
    */
   x?: number;
   y?: number;
   /** Corner radius for `glass` panels. */
   cornerRadius?: number;
   /** `document` anchor: stick this many CSS points below the top of the
-   * visible area, like `position: sticky; top: …`. */
+   * visible area, like `position: sticky; top: …`. An update can change it
+   * but not remove it — recreate the component to stop sticking. */
   stickyTop?: number;
+  /** `document` anchor: bottom edge of the containing block, in page CSS
+   * points. Like CSS sticky, the view stops sticking once its bottom reaches
+   * it. Omit to stick indefinitely. */
+  stickyBottom?: number;
   /** `segmented`: hex fill and text colors of the item `badge` pill. */
   badgeColor?: string;
   badgeTextColor?: string;
@@ -151,10 +157,13 @@ export interface ComponentProps {
   /** Gap from the anchored safe-area edge, in points. */
   inset?: number;
 
-  // ── `tabBar` ────────────────────────────────────────────────────────────
-  /** The tabs, when `kind === 'tabBar'`. */
+  // ── `tabBar` / `segmented` ──────────────────────────────────────────────
+  /** The tabs (`tabBar`) or segments (`segmented`). A `segmented` item shows
+   * its `title`, or its `sfSymbol` only when `title` is empty (VoiceOver then
+   * reads the item `id`). Updating `items` on a `segmented` rebuilds it. */
   items?: TabItem[];
-  /** Initially-selected tab id (defaults to the first). */
+  /** Selected item id (defaults to the first); via update, re-selects
+   * without emitting an event. */
   selectedId?: string;
   /**
    * How the bar lays out its items (maps to `UITabBar.itemPositioning`):
@@ -171,7 +180,8 @@ export interface CreateComponentOptions {
   props?: ComponentProps;
   /** Defaults to `topTrailing`. */
   anchor?: ComponentAnchor;
-  /** Offset from the anchor, in points (grows inward). */
+  /** Offset from the anchor, in points (grows inward). Ignored by `absolute`,
+   * `fill` and `document`, which position by `props.x`/`props.y`. */
   dx?: number;
   dy?: number;
   /**
@@ -528,8 +538,9 @@ export async function removeComponent(id: string): Promise<void> {
 }
 
 /**
- * Listens for interaction with native components: button `click`s and
- * switch/slider `change`s. Same dual-transport mechanism as
+ * Listens for interaction with native components: button `click`s,
+ * switch/slider `change`s, and tab bar / segmented `select`s (the chosen id
+ * is in `detail`). Same dual-transport mechanism as
  * {@link onTabSelected}.
  */
 export async function onComponentEvent(

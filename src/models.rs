@@ -254,7 +254,13 @@ pub struct ComponentProps {
     /// Corner radius for `glass` panels.
     pub corner_radius: Option<f64>,
     /// `document` anchor: sticky offset from the top of the visible area.
+    /// An update can change it but not remove it — recreate the component to
+    /// stop sticking.
     pub sticky_top: Option<f64>,
+    /// `document` anchor: bottom edge of the containing block, in document
+    /// CSS points. Like CSS sticky, the view stops sticking once its bottom
+    /// reaches it. Omit to stick indefinitely.
+    pub sticky_bottom: Option<f64>,
     /// `segmented`: fill and text colors (`#RRGGBB[AA]`) of the item `badge` pill.
     pub badge_color: Option<String>,
     pub badge_text_color: Option<String>,

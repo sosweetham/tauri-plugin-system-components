@@ -23,35 +23,70 @@ final class ComponentsPassthroughView: UIView {
 /// A component placed inside the webview's `UIScrollView`, in document
 /// coordinates (`document` anchor). It scrolls with the page natively — no
 /// per-frame JS round trip — and `stickyTop` keeps it pinned below the top of
-/// the visible area, recomputed on every `contentOffset` change in the same
-/// layout pass, so it never lags behind the content.
+/// the visible area, recomputed on every `contentOffset` / `zoomScale` change
+/// in the same layout pass, so it never lags behind the content.
+///
+/// Geometry is kept in CSS points and scaled by the zoom on every apply, so
+/// the view stays on its DOM placeholder when the page is pinch-zoomed.
 final class ScrollPin {
     weak var view: UIView?
     weak var scrollView: UIScrollView?
     var x: CGFloat
     var y: CGFloat
+    var width: CGFloat
+    var height: CGFloat
+    /// Distance below the top of the visible area to stick at (CSS points).
     var stickyTop: CGFloat?
-    var observation: NSKeyValueObservation?
+    /// Bottom edge of the containing block (document CSS points): like CSS
+    /// sticky, the view stops sticking once its bottom reaches it.
+    var stickyBottom: CGFloat?
+    var observations: [NSKeyValueObservation] = []
 
-    init(view: UIView, scrollView: UIScrollView, x: CGFloat, y: CGFloat, stickyTop: CGFloat?) {
+    init(view: UIView, scrollView: UIScrollView, props: ComponentPropsArgs?) {
         self.view = view
         self.scrollView = scrollView
-        self.x = x
-        self.y = y
-        self.stickyTop = stickyTop
+        x = CGFloat(props?.x ?? 0)
+        y = CGFloat(props?.y ?? 0)
+        width = CGFloat(props?.width ?? 200)
+        height = CGFloat(props?.height ?? 44)
+        stickyTop = props?.stickyTop.map { CGFloat($0) }
+        stickyBottom = props?.stickyBottom.map { CGFloat($0) }
+    }
+
+    func observe() {
+        guard let scrollView else { return }
+        observations = [
+            scrollView.observe(\.contentOffset) { [weak self] _, _ in self?.apply() },
+            scrollView.observe(\.zoomScale) { [weak self] _, _ in self?.apply() },
+        ]
+    }
+
+    func merge(_ props: ComponentPropsArgs) {
+        if let v = props.x { x = CGFloat(v) }
+        if let v = props.y { y = CGFloat(v) }
+        if let v = props.width { width = CGFloat(v) }
+        if let v = props.height { height = CGFloat(v) }
+        if let v = props.stickyTop { stickyTop = CGFloat(v) }
+        if let v = props.stickyBottom { stickyBottom = CGFloat(v) }
     }
 
     func apply() {
         guard let view, let scrollView else { return }
         let zoom = scrollView.zoomScale
-        var top = y * zoom
+        var top = y
         if let stickyTop {
-            let visibleTop = scrollView.contentOffset.y + scrollView.adjustedContentInset.top
+            let visibleTop = (scrollView.contentOffset.y + scrollView.adjustedContentInset.top) / zoom
             top = max(top, visibleTop + stickyTop)
+            if let stickyBottom { top = max(y, min(top, stickyBottom - height)) }
         }
         UIView.performWithoutAnimation {
-            view.frame.origin = CGPoint(x: x * zoom, y: top)
+            view.frame = CGRect(x: x * zoom, y: top * zoom, width: width * zoom, height: height * zoom)
         }
+    }
+
+    func invalidate() {
+        observations.forEach { $0.invalidate() }
+        observations = []
     }
 }
 
@@ -92,19 +127,9 @@ final class ComponentsOverlayController: UIViewController {
                 placeByFrame(container, in: parent, anchor: anchor, props: props)
             }
         } else if anchor == "document", let scrollView = webView?.scrollView {
-            container.frame = CGRect(
-                x: 0, y: 0,
-                width: props?.width ?? 200,
-                height: props?.height ?? 44
-            )
             scrollView.addSubview(container)
-            let pin = ScrollPin(
-                view: container, scrollView: scrollView,
-                x: CGFloat(props?.x ?? 0), y: CGFloat(props?.y ?? 0),
-                stickyTop: props?.stickyTop.map { CGFloat($0) })
-            pin.observation = scrollView.observe(\.contentOffset, options: [.new]) { [weak pin] _, _ in
-                pin?.apply()
-            }
+            let pin = ScrollPin(view: container, scrollView: scrollView, props: props)
+            pin.observe()
             pin.apply()
             pins[args.id] = pin
         } else if anchor == "absolute" || anchor == "fill" {
@@ -172,12 +197,8 @@ final class ComponentsOverlayController: UIViewController {
     func update(id: String, props: ComponentPropsArgs) -> Bool {
         guard let entry = components[id] else { return false }
         if let pin = pins[id] {
-            // `document` anchor: x/y are page coordinates; re-apply the sticky offset.
-            if let x = props.x { pin.x = CGFloat(x) }
-            if let y = props.y { pin.y = CGFloat(y) }
-            if let stickyTop = props.stickyTop { pin.stickyTop = CGFloat(stickyTop) }
-            if let w = props.width { entry.container.frame.size.width = CGFloat(w) }
-            if let h = props.height { entry.container.frame.size.height = CGFloat(h) }
+            // `document` anchor: geometry is in page coordinates; re-apply.
+            pin.merge(props)
             pin.apply()
             ComponentRegistry.update(entry.control, kind: entry.kind, props: props)
             return true
@@ -196,7 +217,7 @@ final class ComponentsOverlayController: UIViewController {
     }
 
     func remove(id: String) {
-        pins.removeValue(forKey: id)?.observation?.invalidate()
+        pins.removeValue(forKey: id)?.invalidate()
         if let entry = components.removeValue(forKey: id) {
             entry.container.removeFromSuperview()
         }
