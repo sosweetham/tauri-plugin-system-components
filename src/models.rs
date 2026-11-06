@@ -185,6 +185,10 @@ pub enum ComponentKind {
     /// component: `props.items` are the tabs; selection arrives as a
     /// `select` component event whose `detail` is the chosen tab id.
     TabBar,
+    /// UISegmentedControl (the iOS "tab view" of the HIG) — on a Liquid Glass
+    /// capsule on iOS 26. `props.items` are the segments; selection arrives as a
+    /// `select` component event whose `detail` is the chosen item id. iOS only.
+    Segmented,
 }
 
 /// Where a component is pinned, relative to the window/safe area.
@@ -209,6 +213,11 @@ pub enum ComponentAnchor {
     Absolute,
     /// Cover the whole window, resizing with it (e.g. background images).
     Fill,
+    /// Position by `props.x`/`props.y` in *document* coordinates. The view
+    /// lives inside the webview's scroll view, so it scrolls with the page
+    /// natively; `props.stickyTop` pins it like `position: sticky`. iOS only
+    /// (macOS treats it as `Absolute`).
+    Document,
 }
 
 /// Per-kind properties. All optional; irrelevant fields are ignored.
@@ -244,6 +253,19 @@ pub struct ComponentProps {
     pub y: Option<f64>,
     /// Corner radius for `glass` panels.
     pub corner_radius: Option<f64>,
+    /// `document` anchor: sticky offset from the top of the visible area.
+    /// An update can change it but not remove it — recreate the component to
+    /// stop sticking.
+    pub sticky_top: Option<f64>,
+    /// `document` anchor: bottom edge of the containing block, in document
+    /// CSS points. Like CSS sticky, the view stops sticking once its bottom
+    /// reaches it. Requires `sticky_top` (ignored without it); omit to stick
+    /// indefinitely. An update can change it but not remove it — recreate the
+    /// component instead.
+    pub sticky_bottom: Option<f64>,
+    /// `segmented`: fill and text colors (`#RRGGBB[AA]`) of the item `badge` pill.
+    pub badge_color: Option<String>,
+    pub badge_text_color: Option<String>,
 
     // ── `container` layout ───────────────────────────────────────────────
     /// `horizontal` (a bar) or `vertical` (a sidebar). Default `horizontal`.

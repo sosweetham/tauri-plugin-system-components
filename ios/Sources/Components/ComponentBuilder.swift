@@ -46,6 +46,7 @@ enum ComponentRegistry {
         case "glass": return GlassComponent.make(args, ctx)
         case "container": return ContainerComponent.make(args, ctx)
         case "tabBar": return TabBarComponent.make(args, ctx)
+        case "segmented": return SegmentedComponent.make(args, ctx)
         default: return nil
         }
     }
@@ -58,6 +59,7 @@ enum ComponentRegistry {
         case "progress": ProgressComponent.update(control, props)
         case "image": ImageComponent.update(control, props)
         case "tabBar": TabBarComponent.update(control, props)
+        case "segmented": SegmentedComponent.update(control, props)
         default: break
         }
     }

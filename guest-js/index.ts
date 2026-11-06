@@ -70,7 +70,12 @@ export type ComponentKind =
   | 'container'
   /** The system tab bar as a component: `props.items` are the tabs; selection
    * arrives as a `select` event whose `detail` is the chosen tab id. */
-  | 'tabBar';
+  | 'tabBar'
+  /** A segmented control (the HIG "tab view"), on a Liquid Glass capsule on
+   * iOS 26: `props.items` are the segments (an item `badge` renders as a
+   * colored pill); selection arrives as a `select` event whose `detail` is the
+   * chosen item id. iOS only. */
+  | 'segmented';
 
 /** Where a component is pinned, relative to the window/safe area. */
 export type ComponentAnchor =
@@ -88,7 +93,13 @@ export type ComponentAnchor =
   /** Position by `props.x`/`props.y` (CSS points from the top-left). */
   | 'absolute'
   /** Cover the whole window, resizing with it. */
-  | 'fill';
+  | 'fill'
+  /** Position by `props.x`/`props.y` in *document* coordinates (CSS points
+   * from the top of the page). The view lives inside the webview's scroll view
+   * and scrolls with the content natively — no per-frame JS sync — and
+   * `props.stickyTop` pins it like `position: sticky`. iOS only (macOS treats
+   * it as `absolute`). */
+  | 'document';
 
 /** Per-kind properties. All optional; irrelevant fields are ignored. */
 export interface ComponentProps {
@@ -116,13 +127,27 @@ export interface ComponentProps {
   width?: number;
   height?: number;
   /**
-   * Top-left position in CSS points, for `absolute` placement. Also
-   * accepted by {@link updateComponent} to move/resize (DOM scroll sync).
+   * Top-left position in CSS points: from the window's top-left for
+   * `absolute`, from the top-left of the page for `document`. Also accepted
+   * by {@link updateComponent} to move/resize.
    */
   x?: number;
   y?: number;
   /** Corner radius for `glass` panels. */
   cornerRadius?: number;
+  /** `document` anchor: stick this many CSS points below the top of the
+   * visible area, like `position: sticky; top: …`. An update can change it
+   * but not remove it — recreate the component to stop sticking. */
+  stickyTop?: number;
+  /** `document` anchor: bottom edge of the containing block, in page CSS
+   * points. Like CSS sticky, the view stops sticking once its bottom reaches
+   * it. Requires `stickyTop` (ignored without it); omit to stick
+   * indefinitely. An update can change it but not remove it — recreate the
+   * component instead. */
+  stickyBottom?: number;
+  /** `segmented`: hex fill and text colors of the item `badge` pill. */
+  badgeColor?: string;
+  badgeTextColor?: string;
 
   // ── `container` layout ──────────────────────────────────────────────────
   /** `horizontal` (a bar) or `vertical` (a sidebar). Default `horizontal`. */
@@ -134,10 +159,13 @@ export interface ComponentProps {
   /** Gap from the anchored safe-area edge, in points. */
   inset?: number;
 
-  // ── `tabBar` ────────────────────────────────────────────────────────────
-  /** The tabs, when `kind === 'tabBar'`. */
+  // ── `tabBar` / `segmented` ──────────────────────────────────────────────
+  /** The tabs (`tabBar`) or segments (`segmented`). A `segmented` item shows
+   * its `title`, or its `sfSymbol` only when `title` is empty (VoiceOver then
+   * reads the item `id`). Updating `items` on a `segmented` rebuilds it. */
   items?: TabItem[];
-  /** Initially-selected tab id (defaults to the first). */
+  /** Selected item id (defaults to the first); via update, re-selects
+   * without emitting an event. */
   selectedId?: string;
   /**
    * How the bar lays out its items (maps to `UITabBar.itemPositioning`):
@@ -154,7 +182,8 @@ export interface CreateComponentOptions {
   props?: ComponentProps;
   /** Defaults to `topTrailing`. */
   anchor?: ComponentAnchor;
-  /** Offset from the anchor, in points (grows inward). */
+  /** Offset from the anchor, in points (grows inward). Ignored by `absolute`,
+   * `fill` and `document`, which position by `props.x`/`props.y`. */
   dx?: number;
   dy?: number;
   /**
@@ -171,13 +200,14 @@ export interface CreateComponentOptions {
 
 export interface ComponentEvent {
   id: string;
-  /** `click` (button), `change` (switch/slider), or `select` (tab bar). */
+  /** `click` (button), `change` (switch/slider), or `select` (tab bar,
+   * segmented control). */
   event: 'click' | 'change' | 'select';
   /** Switch state, on `change` events from switches. */
   on?: boolean;
   /** Slider value, on `change` events from sliders. */
   value?: number;
-  /** The chosen tab id, on `select` events from a `tabBar`. */
+  /** The chosen item id, on `select` events from a `tabBar` or `segmented`. */
   detail?: string;
 }
 
@@ -510,8 +540,9 @@ export async function removeComponent(id: string): Promise<void> {
 }
 
 /**
- * Listens for interaction with native components: button `click`s and
- * switch/slider `change`s. Same dual-transport mechanism as
+ * Listens for interaction with native components: button `click`s,
+ * switch/slider `change`s, and tab bar / segmented `select`s (the chosen id
+ * is in `detail`). Same dual-transport mechanism as
  * {@link onTabSelected}.
  */
 export async function onComponentEvent(

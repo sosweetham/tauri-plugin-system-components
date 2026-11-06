@@ -120,6 +120,63 @@ await updateComponent('wifi', { on: false });
 await removeComponent('me');
 ```
 
+Segmented control (iOS), scrolling with the page. With the `document` anchor
+the view lives inside the webview's scroll view, so it moves with the content
+natively; `stickyTop` pins it like `position: sticky`, and `stickyBottom`
+releases it at the end of its containing block. Keep an invisible DOM
+placeholder that holds the space and carries the sticky CSS:
+
+```css
+#day-tabs {
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + 8px); /* becomes stickyTop */
+  height: 44px;
+  visibility: hidden; /* the native control draws on top */
+}
+```
+
+```ts
+const el = document.querySelector<HTMLElement>('#day-tabs')!;
+
+// Page geometry of the placeholder, as if it weren't stuck.
+function measure() {
+  const stickyTop = parseFloat(getComputedStyle(el).top) || 0;
+  const position = el.style.position;
+  el.style.position = 'static';
+  const { left, top, width, height } = el.getBoundingClientRect();
+  el.style.position = position;
+  const parent = el.parentElement!.getBoundingClientRect();
+  return {
+    x: left + scrollX, y: top + scrollY, width, height,
+    stickyTop, stickyBottom: parent.bottom + scrollY,
+  };
+}
+
+await createComponent({
+  id: 'days', kind: 'segmented', anchor: 'document',
+  props: {
+    items: [
+      { id: 'tue', title: 'Tuesday' },
+      { id: 'wed', title: 'Wednesday', badge: '3' },
+    ],
+    selectedId: 'tue',
+    badgeColor: '#5b0f5b', badgeTextColor: '#ffffff',
+    ...measure(),
+  },
+});
+// Scrolling needs no JS; re-measure only when the layout changes.
+new ResizeObserver(() => updateComponent('days', measure())).observe(document.body);
+
+await onComponentEvent(({ id, event, detail }) => {
+  if (id === 'days' && event === 'select') showDay(detail);
+});
+await updateComponent('days', { selectedId: 'wed' });
+```
+
+On iOS 26 the control sits on a Liquid Glass capsule, like segmented
+controls in system bars. A segment shows its `title`, or its `sfSymbol` only
+when `title` is empty.
+
 Other commands: `removeTabBar`, `showTabBar`, `hideTabBar`,
 `selectTab(id)` (no event, mirrors AppKit/UIKit), `setBadge(id, value?)`
 (iOS-only), `clearWindowGlass`.
