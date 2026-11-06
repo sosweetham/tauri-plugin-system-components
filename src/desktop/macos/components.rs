@@ -74,7 +74,7 @@ pub fn create<R: Runtime>(
             // Composed nav (container / tab bar as components) isn't wired on
             // macOS yet — the sidebar pass adds it. Skip cleanly so the existing
             // configureTabBar path keeps owning the macOS nav for now.
-            ComponentKind::Container | ComponentKind::TabBar => return Ok(()),
+            ComponentKind::Container | ComponentKind::TabBar | ComponentKind::Segmented => return Ok(()),
             ComponentKind::Switch => {
                 let control = NSSwitch::new(mtm);
                 unsafe {
@@ -354,7 +354,7 @@ pub fn create<R: Runtime>(
                     | NSAutoresizingMaskOptions::ViewMaxYMargin,
             ),
             // CSS coordinates: y from the top, so flip into AppKit space.
-            ComponentAnchor::Absolute => (
+            ComponentAnchor::Absolute | ComponentAnchor::Document => (
                 props.x.unwrap_or(0.0),
                 bh - props.y.unwrap_or(0.0) - h,
                 NSAutoresizingMaskOptions::ViewMinYMargin,

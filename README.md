@@ -120,6 +120,39 @@ await updateComponent('wifi', { on: false });
 await removeComponent('me');
 ```
 
+Segmented control (iOS), scrolling with the page. With the `document` anchor
+the view lives inside the webview's scroll view, so it moves with the content
+natively; `stickyTop` pins it like `position: sticky`. Keep an invisible DOM
+placeholder for the layout and measure it once (and on resize):
+
+```ts
+const el = document.querySelector('#day-tabs')!;
+const stickyTop = parseFloat(getComputedStyle(el).top) || 0;
+el.style.position = 'static'; // measure the un-stuck position
+const { left, top, width, height } = el.getBoundingClientRect();
+el.style.position = '';
+
+await createComponent({
+  id: 'days', kind: 'segmented', anchor: 'document',
+  props: {
+    items: [
+      { id: 'tue', title: 'Tuesday' },
+      { id: 'wed', title: 'Wednesday', badge: '3' },
+    ],
+    selectedId: 'tue',
+    badgeColor: '#5b0f5b', badgeTextColor: '#ffffff',
+    x: left + scrollX, y: top + scrollY, width, height, stickyTop,
+  },
+});
+await onComponentEvent(({ id, event, detail }) => {
+  if (id === 'days' && event === 'select') showDay(detail);
+});
+await updateComponent('days', { selectedId: 'wed' });
+```
+
+On iOS 26 the control sits on a Liquid Glass capsule, like segmented
+controls in system bars.
+
 Other commands: `removeTabBar`, `showTabBar`, `hideTabBar`,
 `selectTab(id)` (no event, mirrors AppKit/UIKit), `setBadge(id, value?)`
 (iOS-only), `clearWindowGlass`.

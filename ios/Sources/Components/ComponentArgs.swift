@@ -28,6 +28,12 @@ class ComponentPropsArgs: Decodable {
     let y: Double?
     /// Corner radius for `glass` panels.
     let cornerRadius: Double?
+    /// `document` anchor: stick this many CSS points below the top of the
+    /// visible area, like `position: sticky; top: …`.
+    let stickyTop: Double?
+    /// `segmented`: fill and text colors of the item `badge` pill.
+    let badgeColor: String?
+    let badgeTextColor: String?
 
     // `container` layout.
     let axis: String?

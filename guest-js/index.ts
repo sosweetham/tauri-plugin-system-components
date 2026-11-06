@@ -70,7 +70,12 @@ export type ComponentKind =
   | 'container'
   /** The system tab bar as a component: `props.items` are the tabs; selection
    * arrives as a `select` event whose `detail` is the chosen tab id. */
-  | 'tabBar';
+  | 'tabBar'
+  /** A segmented control (the HIG "tab view"), on a Liquid Glass capsule on
+   * iOS 26: `props.items` are the segments (an item `badge` renders as a
+   * colored pill); selection arrives as a `select` event whose `detail` is the
+   * chosen item id. iOS only. */
+  | 'segmented';
 
 /** Where a component is pinned, relative to the window/safe area. */
 export type ComponentAnchor =
@@ -88,7 +93,13 @@ export type ComponentAnchor =
   /** Position by `props.x`/`props.y` (CSS points from the top-left). */
   | 'absolute'
   /** Cover the whole window, resizing with it. */
-  | 'fill';
+  | 'fill'
+  /** Position by `props.x`/`props.y` in *document* coordinates (CSS points
+   * from the top of the page). The view lives inside the webview's scroll view
+   * and scrolls with the content natively — no per-frame JS sync — and
+   * `props.stickyTop` pins it like `position: sticky`. iOS only (macOS treats
+   * it as `absolute`). */
+  | 'document';
 
 /** Per-kind properties. All optional; irrelevant fields are ignored. */
 export interface ComponentProps {
@@ -123,6 +134,12 @@ export interface ComponentProps {
   y?: number;
   /** Corner radius for `glass` panels. */
   cornerRadius?: number;
+  /** `document` anchor: stick this many CSS points below the top of the
+   * visible area, like `position: sticky; top: …`. */
+  stickyTop?: number;
+  /** `segmented`: hex fill and text colors of the item `badge` pill. */
+  badgeColor?: string;
+  badgeTextColor?: string;
 
   // ── `container` layout ──────────────────────────────────────────────────
   /** `horizontal` (a bar) or `vertical` (a sidebar). Default `horizontal`. */
@@ -171,13 +188,14 @@ export interface CreateComponentOptions {
 
 export interface ComponentEvent {
   id: string;
-  /** `click` (button), `change` (switch/slider), or `select` (tab bar). */
+  /** `click` (button), `change` (switch/slider), or `select` (tab bar,
+   * segmented control). */
   event: 'click' | 'change' | 'select';
   /** Switch state, on `change` events from switches. */
   on?: boolean;
   /** Slider value, on `change` events from sliders. */
   value?: number;
-  /** The chosen tab id, on `select` events from a `tabBar`. */
+  /** The chosen item id, on `select` events from a `tabBar` or `segmented`. */
   detail?: string;
 }
 

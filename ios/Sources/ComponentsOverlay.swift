@@ -20,8 +20,44 @@ final class ComponentsPassthroughView: UIView {
     }
 }
 
+/// A component placed inside the webview's `UIScrollView`, in document
+/// coordinates (`document` anchor). It scrolls with the page natively — no
+/// per-frame JS round trip — and `stickyTop` keeps it pinned below the top of
+/// the visible area, recomputed on every `contentOffset` change in the same
+/// layout pass, so it never lags behind the content.
+final class ScrollPin {
+    weak var view: UIView?
+    weak var scrollView: UIScrollView?
+    var x: CGFloat
+    var y: CGFloat
+    var stickyTop: CGFloat?
+    var observation: NSKeyValueObservation?
+
+    init(view: UIView, scrollView: UIScrollView, x: CGFloat, y: CGFloat, stickyTop: CGFloat?) {
+        self.view = view
+        self.scrollView = scrollView
+        self.x = x
+        self.y = y
+        self.stickyTop = stickyTop
+    }
+
+    func apply() {
+        guard let view, let scrollView else { return }
+        let zoom = scrollView.zoomScale
+        var top = y * zoom
+        if let stickyTop {
+            let visibleTop = scrollView.contentOffset.y + scrollView.adjustedContentInset.top
+            top = max(top, visibleTop + stickyTop)
+        }
+        UIView.performWithoutAnimation {
+            view.frame.origin = CGPoint(x: x * zoom, y: top)
+        }
+    }
+}
+
 final class ComponentsOverlayController: UIViewController {
     private var components: [String: (container: UIView, control: UIView, kind: String)] = [:]
+    private var pins: [String: ScrollPin] = [:]
     private weak var webViewRef: WKWebView?
     /// (id, event, on, value, detail)
     var onEvent: ((String, String, Bool?, Double?, String?) -> Void)?
@@ -55,6 +91,22 @@ final class ComponentsOverlayController: UIViewController {
                 parent.insertSubview(container, belowSubview: webView)
                 placeByFrame(container, in: parent, anchor: anchor, props: props)
             }
+        } else if anchor == "document", let scrollView = webView?.scrollView {
+            container.frame = CGRect(
+                x: 0, y: 0,
+                width: props?.width ?? 200,
+                height: props?.height ?? 44
+            )
+            scrollView.addSubview(container)
+            let pin = ScrollPin(
+                view: container, scrollView: scrollView,
+                x: CGFloat(props?.x ?? 0), y: CGFloat(props?.y ?? 0),
+                stickyTop: props?.stickyTop.map { CGFloat($0) })
+            pin.observation = scrollView.observe(\.contentOffset, options: [.new]) { [weak pin] _, _ in
+                pin?.apply()
+            }
+            pin.apply()
+            pins[args.id] = pin
         } else if anchor == "absolute" || anchor == "fill" {
             view.addSubview(container)
             placeByFrame(container, in: view, anchor: anchor, props: props)
@@ -119,6 +171,17 @@ final class ComponentsOverlayController: UIViewController {
 
     func update(id: String, props: ComponentPropsArgs) -> Bool {
         guard let entry = components[id] else { return false }
+        if let pin = pins[id] {
+            // `document` anchor: x/y are page coordinates; re-apply the sticky offset.
+            if let x = props.x { pin.x = CGFloat(x) }
+            if let y = props.y { pin.y = CGFloat(y) }
+            if let stickyTop = props.stickyTop { pin.stickyTop = CGFloat(stickyTop) }
+            if let w = props.width { entry.container.frame.size.width = CGFloat(w) }
+            if let h = props.height { entry.container.frame.size.height = CGFloat(h) }
+            pin.apply()
+            ComponentRegistry.update(entry.control, kind: entry.kind, props: props)
+            return true
+        }
         // Geometry updates (DOM scroll/resize sync) act on the mounted view.
         if props.x != nil || props.y != nil || props.width != nil || props.height != nil {
             var frame = entry.container.frame
@@ -133,6 +196,7 @@ final class ComponentsOverlayController: UIViewController {
     }
 
     func remove(id: String) {
+        pins.removeValue(forKey: id)?.observation?.invalidate()
         if let entry = components.removeValue(forKey: id) {
             entry.container.removeFromSuperview()
         }
